@@ -1,13 +1,36 @@
 extends CharacterBody2D
 class_name GridPlayer
 
+signal health_changed(current: int, maximum: int)
+
 const MOVE_INITIAL_DELAY := 0.25 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
 
+@export var max_health: int = 3
+## Min time between damage from bumping the same enemy while holding a key (seconds).
+@export var enemy_hit_cooldown_sec: float = 0.45
+
+var health: int = 3
+
+var keys_held: int = 0
 var _grid_cell: Vector2i = Vector2i.ZERO
 var _held_dir: Vector2i = Vector2i.ZERO
 var _move_timer: float = 0.0
 var _initial_held: bool = false
+var _enemy_hit_cd: float = 0.0
+
+
+func _ready() -> void:
+	health = max_health
+	health_changed.emit(health, max_health)
+
+
+func take_hit() -> bool:
+	if health <= 0:
+		return false
+	health -= 1
+	health_changed.emit(health, max_health)
+	return health > 0
 
 
 func initialize_grid(maze: MazeController, cell: Vector2i) -> void:
@@ -37,6 +60,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	_enemy_hit_cd = maxf(0.0, _enemy_hit_cd - delta)
 	if _held_dir == Vector2i.ZERO:
 		return
 	_move_timer -= delta
@@ -51,9 +75,16 @@ func _try_move(d: Vector2i) -> void:
 	if maze == null:
 		return
 	var next: Vector2i = _grid_cell + d
+	if maze.has_enemy_at(next):
+		if _enemy_hit_cd <= 0.0:
+			take_hit()
+			_enemy_hit_cd = enemy_hit_cooldown_sec
+		return
 	if maze.is_walkable(next):
 		_grid_cell = next
 		global_position = maze.tile_to_world_center(_grid_cell)
+		if maze.try_collect_key_at(_grid_cell):
+			keys_held += 1
 
 
 func _key_to_dir(keycode: Key) -> Vector2i:

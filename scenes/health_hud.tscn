@@ -1,0 +1,47 @@
+[gd_scene load_steps=2 format=3 uid="uid://d0mxqhfmwdwm7"]
+
+[ext_resource type="Script" uid="uid://cusqtajspavqo" path="res://scripts/health_hud.gd" id="1_health_hud"]
+
+[node name="HealthHud" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_health_hud")
+block_size = Vector2(12, 12)
+
+[node name="Overlay" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HealthMargin" type="MarginContainer" parent="Overlay"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 1.0
+offset_right = 128.0
+offset_bottom = 37.0
+
+[node name="BlocksRow" type="HBoxContainer" parent="Overlay/HealthMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Hit1" type="TextureRect" parent="Overlay/HealthMargin/BlocksRow"]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Hit2" type="TextureRect" parent="Overlay/HealthMargin/BlocksRow"]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Hit3" type="TextureRect" parent="Overlay/HealthMargin/BlocksRow"]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
