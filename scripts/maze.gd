@@ -4,51 +4,46 @@ class_name MazeController
 const TILE_SIZE := 8
 const COLOR_FLOOR := Color(1, 1, 1)
 
-## '#' = wall block, '.' / 'P' = floor. One 'P' = spawn.
-const MAZE_LAYOUT := """
-########.################
-#.#.....P.#.......#.....#
-#.#.#####.#.###.#.#.#.###
-#...#...#.#.#...#...#...#
-###.###.#.#.#.###.#.#.###
-#.#...#.#.#.#...#.#.#...#
-#.###.#.#.#.###.#.#.###.#
-#.#...#...#...#.#.#.#...#
-#.#.###.#######.###.#.###
-#.#.#.#...#.....#.#...#.#
-#.#.#.#.###.###.#.#.#.#.#
-#.#.#.......#...#.#.#.#.#
-#.###.#####.#####.###.#.#
-#...#.#...#.......#.#...#
-#.###.###.#.#.#####.###.#
-#.......#...#.#.#...#.#.#
-#######.###.#.#.###.#.#.#
-#.....#.#...#.#.....#...#
-#.###.#.#.###.#.###.###.#
-#.#.....#.#...#...#.....#
-###########.#############
-"""
+# ── Maze generation settings ──────────────────────────────────
+## Width of each quadrant in cells (total maze width = 2 * this)
+@export var quadrant_width: int = 6
+## Height of each quadrant in cells (total maze height = 2 * this)
+@export var quadrant_height: int = 6
 
+# ── Direction bitflags for the cell grid ──────────────────────
+const _N := 1
+const _E := 2
+const _S := 4
+const _W := 8
+const _OPPOSITE := { 1: 4, 4: 1, 2: 8, 8: 2 }  # N<->S, E<->W
+const _DX := { 1: 0, 2: 1, 4: 0, 8: -1 }
+const _DY := { 1: -1, 2: 0, 4: 1, 8: 0 }
+const _DIRS := [1, 2, 4, 8]
+
+# ── State ─────────────────────────────────────────────────────
 var _rows: PackedStringArray = []
 var _wall_texture: Texture2D = null
+var spawn_cell: Vector2i = Vector2i.ZERO
+var exit_cell: Vector2i = Vector2i.ZERO
+var key_positions: Array[Vector2i] = []
+
 
 func _ready() -> void:
 	_wall_texture = load("res://assets/under_walls.png")
 
-	_rows.clear()
-	for raw: String in MAZE_LAYOUT.strip_edges().split("\n"):
-		var line := raw.replace("\r", "").strip_edges()
-		if line.is_empty():
-			continue
-		_rows.append(line)
+	# Generate the maze and store it as _rows (same format as the old hardcoded layout)
+	_rows = _generate_maze_rows()
 
-	var spawn_cell := Vector2i(8, 1)
+	# Find spawn (P) and exit (E) markers
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
 		for x in range(row.length()):
 			if row[x] == "P":
 				spawn_cell = Vector2i(x, y)
+			elif row[x] == "E":
+				exit_cell = Vector2i(x, y)
 
+	# Build the visual scene
 	var floors := Node2D.new()
 	floors.name = "Floors"
 	floors.z_index = 0
@@ -68,10 +63,12 @@ func _ready() -> void:
 			else:
 				_add_floor_tile(floors, center)
 
+	# Initialize player
 	var player := get_node_or_null("../Player")
 	if player and player.has_method("initialize_grid"):
-		player.initialize_grid(self , spawn_cell)
+		player.initialize_grid(self, spawn_cell)
 
+	# Fit camera
 	var cam := get_node_or_null("../Camera2D") as Camera2D
 	if cam and _rows.size() > 0:
 		var w := _rows[0].length()
@@ -79,8 +76,185 @@ func _ready() -> void:
 		cam.global_position = Vector2(w, h) * TILE_SIZE / 2.0
 		cam.make_current()
 		await get_tree().process_frame
-		_fit_camera_to_maze(cam, w, h)
+		var maze_size := Vector2(w * TILE_SIZE, h * TILE_SIZE)
+		var vp := get_viewport().get_visible_rect().size
+		if vp.x > 0.0 and vp.y > 0.0:
+			var z: float = minf(vp.x / maze_size.x, vp.y / maze_size.y) * 0.92
+			cam.zoom = Vector2(z, z)
 
+
+# PROCEDURAL MAZE GENERATION
+
+## Generates the full maze and returns it as a PackedStringArray
+## in the same '#' / '.' / 'P' / 'E' format the renderer expects.
+func _generate_maze_rows() -> PackedStringArray:
+	var qw := quadrant_width
+	var qh := quadrant_height
+	var full_cw := qw * 2  # total cell width
+	var full_ch := qh * 2  # total cell height
+
+	# Generate 4 quadrant mazes independently
+	var q_tl := _gen_quadrant(qw, qh)
+	var q_tr := _gen_quadrant(qw, qh)
+	var q_bl := _gen_quadrant(qw, qh)
+	var q_br := _gen_quadrant(qw, qh)
+
+	# Combine into one cell grid
+	var cells := _combine(q_tl, q_tr, q_bl, q_br, qw, qh)
+
+	# Connect quadrants in a loop
+	_connect_loop(cells, qw, qh)
+
+	# Convert cell grid to tile characters
+	var tw := full_cw * 2 + 1
+	var th := full_ch * 2 + 1
+	var grid: Array[String] = []
+	for _y in range(th):
+		grid.append("#".repeat(tw))
+
+	# Carve floors into the character grid
+	for cy in range(full_ch):
+		for cx in range(full_cw):
+			var val: int = cells[cy][cx]
+			var tx := cx * 2 + 1
+			var ty := cy * 2 + 1
+
+			# Cell center is always floor
+			grid[ty] = _set_char(grid[ty], tx, ".")
+
+			# If east wall open, carve passage to the right
+			if val & _E:
+				grid[ty] = _set_char(grid[ty], tx + 1, ".")
+
+			# If south wall open, carve passage below
+			if val & _S:
+				grid[ty + 1] = _set_char(grid[ty + 1], tx, ".")
+
+	# Place entrance (P) on the bottom edge
+	var entrance_x := _find_border_opening(grid, th - 2, tw)
+	grid[th - 2] = _set_char(grid[th - 2], entrance_x, "P")
+	grid[th - 1] = _set_char(grid[th - 1], entrance_x, ".")  # open outer wall
+
+	# Place exit (E) on the top edge
+	var exit_x := _find_border_opening(grid, 1, tw)
+	grid[1] = _set_char(grid[1], exit_x, "E")
+	grid[0] = _set_char(grid[0], exit_x, ".")  # open outer wall
+
+	var result: PackedStringArray = []
+	for row in grid:
+		result.append(row)
+	return result
+
+
+## Finds a random floor tile on a given row to use as an entrance/exit.
+func _find_border_opening(grid: Array[String], row_idx: int, width: int) -> int:
+	var candidates: Array[int] = []
+	for x in range(1, width - 1):
+		if grid[row_idx][x] == ".":
+			candidates.append(x)
+	return candidates[randi() % candidates.size()]
+
+
+## Helper: GDScript strings are immutable, so we rebuild with one char replaced.
+func _set_char(s: String, idx: int, c: String) -> String:
+	return s.substr(0, idx) + c + s.substr(idx + 1)
+
+
+# RECURSIVE BACKTRACKING ALGORITHM
+
+## Generates a single quadrant maze. Returns 2D array of ints (bitflags
+## indicating which walls have been removed).
+func _gen_quadrant(w: int, h: int) -> Array:
+	var grid := []
+	for y in range(h):
+		var row := []
+		for x in range(w):
+			row.append(0)
+		grid.append(row)
+
+	var visited := {}
+	var stack := []
+	var start := Vector2i(randi() % w, randi() % h)
+	visited[start] = true
+	stack.append(start)
+
+	while stack.size() > 0:
+		var current: Vector2i = stack[-1]
+		var neighbors := _unvisited_neighbors(current, w, h, visited)
+
+		if neighbors.size() > 0:
+			var pick: Array = neighbors[randi() % neighbors.size()]
+			var next_cell: Vector2i = pick[0]
+			var dir: int = pick[1]
+
+			grid[current.y][current.x] |= dir
+			grid[next_cell.y][next_cell.x] |= _OPPOSITE[dir]
+
+			visited[next_cell] = true
+			stack.append(next_cell)
+		else:
+			stack.pop_back()
+
+	return grid
+
+
+func _unvisited_neighbors(cell: Vector2i, w: int, h: int, visited: Dictionary) -> Array:
+	var result := []
+	for dir in _DIRS:
+		var nx := cell.x + int(_DX[dir])
+		var ny := cell.y + int(_DY[dir])
+		var nv := Vector2i(nx, ny)
+		if nx >= 0 and nx < w and ny >= 0 and ny < h and not visited.has(nv):
+			result.append([nv, dir])
+	return result
+
+
+# QUADRANT COMBINING AND LOOP CONNECTION
+
+func _combine(tl: Array, top_right: Array, bl: Array, br: Array, qw: int, qh: int) -> Array:
+	var full_w := qw * 2
+	var full_h := qh * 2
+	var grid := []
+	for y in range(full_h):
+		var row := []
+		for x in range(full_w):
+			if x < qw and y < qh:
+				row.append(tl[y][x])
+			elif x >= qw and y < qh:
+				row.append(top_right[y][x - qw])
+			elif x < qw and y >= qh:
+				row.append(bl[y - qh][x])
+			else:
+				row.append(br[y - qh][x - qw])
+		grid.append(row)
+	return grid
+
+
+## Opens 4 passages between quadrants to create the loop.
+## TL <-> TR (top), TR <-> BR (right), BR <-> BL (bottom), BL <-> TL (left)
+func _connect_loop(grid: Array, qw: int, qh: int) -> void:
+	# TL <-> TR: vertical center line, random row in top half
+	var row_top := randi() % qh
+	grid[row_top][qw - 1] |= _E
+	grid[row_top][qw] |= _W
+
+	# BL <-> BR: vertical center line, random row in bottom half
+	var row_bot := qh + (randi() % qh)
+	grid[row_bot][qw - 1] |= _E
+	grid[row_bot][qw] |= _W
+
+	# TL <-> BL: horizontal center line, random col in left half
+	var col_left := randi() % qw
+	grid[qh - 1][col_left] |= _S
+	grid[qh][col_left] |= _N
+
+	# TR <-> BR: horizontal center line, random col in right half
+	var col_right := qw + (randi() % qw)
+	grid[qh - 1][col_right] |= _S
+	grid[qh][col_right] |= _N
+
+
+# RENDERING
 
 func _add_floor_tile(parent: Node2D, center: Vector2) -> void:
 	var poly := Polygon2D.new()
