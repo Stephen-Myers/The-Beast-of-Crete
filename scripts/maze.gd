@@ -9,6 +9,10 @@ const COLOR_FLOOR := Color(1, 1, 1)
 @export var quadrant_width: int = 6
 ## Height of each quadrant in cells (total maze height = 2 * this)
 @export var quadrant_height: int = 6
+## Optional sprite for key pickups; if unset, a gold placeholder block is drawn.
+@export var key_icon: Texture2D
+## Turn off placeholder enemy when minotaur is in the scene; then delete scripts/placeholder_enemy_maze.gd.
+@export var use_placeholder_enemy: bool = true
 
 # ── Direction bitflags for the cell grid ──────────────────────
 const _N := 1
@@ -25,7 +29,8 @@ var _rows: PackedStringArray = []
 var _wall_texture: Texture2D = null
 var spawn_cell: Vector2i = Vector2i.ZERO
 var exit_cell: Vector2i = Vector2i.ZERO
-var key_positions: Array[Vector2i] = []
+var _keys_by_cell: Dictionary = {}
+var _enemy_cells: Dictionary = {}
 
 
 func _ready() -> void:
@@ -54,6 +59,19 @@ func _ready() -> void:
 	walls.z_index = 1
 	add_child(walls)
 
+	var keys_root := Node2D.new()
+	keys_root.name = "Keys"
+	keys_root.z_index = 2
+	add_child(keys_root)
+
+	var enemies_root := Node2D.new()
+	enemies_root.name = "Enemies"
+	enemies_root.z_index = 2
+	add_child(enemies_root)
+
+	if use_placeholder_enemy:
+		PlaceholderEnemyMaze.spawn(self, enemies_root)
+
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
 		for x in range(row.length()):
@@ -62,6 +80,11 @@ func _ready() -> void:
 				_add_wall_block(walls, center, Vector2i(x, y))
 			else:
 				_add_floor_tile(floors, center)
+				if row[x] == "K":
+					var kp := KeyPickup.new()
+					kp.setup(Vector2i(x, y), center, TILE_SIZE, key_icon)
+					keys_root.add_child(kp)
+					_keys_by_cell[Vector2i(x, y)] = kp
 
 	# Initialize player
 	var player := get_node_or_null("../Player")
@@ -140,10 +163,34 @@ func _generate_maze_rows() -> PackedStringArray:
 	grid[1] = _set_char(grid[1], exit_x, "E")
 	grid[0] = _set_char(grid[0], exit_x, ".")  # open outer wall
 
+	_place_keys_in_grid(grid, tw, th)
+
 	var result: PackedStringArray = []
 	for row in grid:
 		result.append(row)
 	return result
+
+
+## Places exactly three key markers ('K') on walkable cells (deterministic from sorted floors).
+func _place_keys_in_grid(grid: Array[String], tw: int, th: int) -> void:
+	var floors: Array[Vector2i] = []
+	for y in range(1, th - 1):
+		for x in range(1, tw - 1):
+			if grid[y][x] == ".":
+				floors.append(Vector2i(x, y))
+	var n := floors.size()
+	if n < 3:
+		return
+	floors.sort_custom(
+		func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x)
+	)
+	var picks: Array[Vector2i] = [floors[n / 4], floors[n / 2], floors[(n * 3) / 4]]
+	var placed: Dictionary = {}
+	for p: Vector2i in picks:
+		if placed.has(p):
+			continue
+		placed[p] = true
+		grid[p.y] = _set_char(grid[p.y], p.x, "K")
 
 
 ## Finds a random floor tile on a given row to use as an entrance/exit.
@@ -328,3 +375,35 @@ func is_walkable(tile: Vector2i) -> bool:
 	if tile.x < 0 or tile.x >= row.length():
 		return false
 	return row[tile.x] != "#"
+
+
+func has_enemy_at(tile: Vector2i) -> bool:
+	return _enemy_cells.has(tile)
+
+
+## Call when an enemy occupies a grid cell (hazard / bump damage). Real enemy AI uses this too.
+func register_enemy_cell(cell: Vector2i) -> void:
+	_enemy_cells[cell] = true
+
+
+func unregister_enemy_cell(cell: Vector2i) -> void:
+	_enemy_cells.erase(cell)
+
+
+## Row strings for hazard placement scripts (same as maze layout: # wall, . floor, K key, …).
+func enemy_grid_rows() -> PackedStringArray:
+	return _rows
+
+
+func try_collect_key_at(tile: Vector2i) -> bool:
+	if not _keys_by_cell.has(tile):
+		return false
+	var kp: Node = _keys_by_cell[tile]
+	_keys_by_cell.erase(tile)
+	if is_instance_valid(kp):
+		kp.queue_free()
+	if tile.y >= 0 and tile.y < _rows.size():
+		var row: String = _rows[tile.y]
+		if tile.x >= 0 and tile.x < row.length() and row[tile.x] == "K":
+			_rows[tile.y] = _set_char(row, tile.x, ".")
+	return true
