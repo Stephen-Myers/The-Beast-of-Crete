@@ -1,4 +1,4 @@
-extends CanvasLayer
+extends Control
 class_name HealthHud
 
 ## Should match the number of TextureRect children under %BlocksRow (default: 3).
@@ -12,8 +12,6 @@ class_name HealthHud
 ## Optional per-slot sizes (Hit1 = index 0, etc.). Use (0, 0) for an entry to keep [block_size] for that slot.
 @export var block_sizes: Array[Vector2] = []
 @export var separation: int = 10
-## Pixels from the **viewport’s top-left** to this HUD. Lower = closer to the corner; e.g. (0, 0) is flush.
-@export var corner_offset: Vector2 = Vector2(0, 0)
 ## Padding **inside** the panel, between the panel edge and the icons.
 @export var margin_left: int = 8
 @export var margin_top: int = 8
@@ -62,10 +60,10 @@ func _apply_globals() -> void:
 	_margin.anchor_top = 0.0
 	_margin.anchor_right = 0.0
 	_margin.anchor_bottom = 0.0
-	_margin.offset_left = corner_offset.x
-	_margin.offset_top = corner_offset.y
-	_margin.offset_right = corner_offset.x + row_w + pad_x
-	_margin.offset_bottom = corner_offset.y + row_h + pad_y
+	_margin.offset_left = 0.0
+	_margin.offset_top = 0.0
+	_margin.offset_right = row_w + pad_x
+	_margin.offset_bottom = row_h + pad_y
 
 	for i in _blocks.size():
 		var sz: Vector2 = _size_for_slot(i)
@@ -93,7 +91,6 @@ func _placeholder_texture_for_size(sz: Vector2) -> ImageTexture:
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.88, 0.3, 0.32, 1.0))
 	return ImageTexture.create_from_image(img)
-
 
 func _connect_player() -> void:
 	var p := get_tree().get_first_node_in_group("player") as GridPlayer
