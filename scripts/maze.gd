@@ -96,14 +96,17 @@ func _ready() -> void:
 	if cam and _rows.size() > 0:
 		var w := _rows[0].length()
 		var h := _rows.size()
+		var hud_px := 8.0
 		cam.global_position = Vector2(w, h) * TILE_SIZE / 2.0
 		cam.make_current()
 		await get_tree().process_frame
 		var maze_size := Vector2(w * TILE_SIZE, h * TILE_SIZE)
 		var vp := get_viewport().get_visible_rect().size
 		if vp.x > 0.0 and vp.y > 0.0:
-			var z: float = minf(vp.x / maze_size.x, vp.y / maze_size.y) * 0.92
+			var game_area := Vector2(vp.x, vp.y - hud_px)
+			var z: float = minf(game_area.x / maze_size.x, game_area.y / maze_size.y) * 0.92
 			cam.zoom = Vector2(z, z)
+			cam.offset = Vector2(0, -hud_px / 2.0)
 
 
 # PROCEDURAL MAZE GENERATION
@@ -308,7 +311,7 @@ func _add_floor_tile(parent: Node2D, center: Vector2) -> void:
 	poly.color = COLOR_FLOOR
 	var h := TILE_SIZE
 	poly.polygon = PackedVector2Array(
-		[Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)]
+		[Vector2(-h, -h + 6), Vector2(h, -h + 6), Vector2(h, h - 2), Vector2(-h, h - 2)]
 	)
 	poly.position = center
 	parent.add_child(poly)
