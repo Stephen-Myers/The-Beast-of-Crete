@@ -13,6 +13,8 @@ const COLOR_FLOOR := Color(1, 1, 1)
 @export var key_icon: Texture2D
 ## Turn off placeholder enemy when minotaur is in the scene; then delete scripts/placeholder_enemy_maze.gd.
 @export var use_placeholder_enemy: bool = true
+## Chance to remove each dead end (0.0 = pure maze, 1.0 = no dead ends)
+@export_range(0.0, 1.0) var braid_chance: float = 0.5
 
 # ── Direction bitflags for the cell grid ──────────────────────
 const _N := 1
@@ -130,6 +132,9 @@ func _generate_maze_rows() -> PackedStringArray:
 
 	# Connect quadrants in a loop
 	_connect_loop(cells, qw, qh)
+
+	# Braid: remove dead ends to create alternate escape routes
+	_braid(cells, full_cw, full_ch)
 
 	# Convert cell grid to tile characters
 	var tw := full_cw * 2 + 1
@@ -302,6 +307,38 @@ func _connect_loop(grid: Array, qw: int, qh: int) -> void:
 	var col_right := qw + (randi() % qw)
 	grid[qh - 1][col_right] |= _S
 	grid[qh][col_right] |= _N
+
+## Removes dead ends by opening a random wall, creating alternate paths.
+func _braid(cells: Array, w: int, h: int) -> void:
+	for y in range(h):
+		for x in range(w):
+			var val: int = cells[y][x]
+			# Count open walls — dead end has exactly 1
+			var open := 0
+			for dir in _DIRS:
+				if val & dir:
+					open += 1
+			if open != 1:
+				continue
+			if randf() > braid_chance:
+				continue
+			# Find closed walls that lead to a valid neighbor
+			var closed: Array[int] = []
+			for dir in _DIRS:
+				if val & dir:
+					continue
+				var nx := x + int(_DX[dir])
+				var ny := y + int(_DY[dir])
+				if nx >= 0 and nx < w and ny >= 0 and ny < h:
+					closed.append(dir)
+			if closed.is_empty():
+				continue
+			# Open a random closed wall
+			var dir: int = closed[randi() % closed.size()]
+			var nx := x + int(_DX[dir])
+			var ny := y + int(_DY[dir])
+			cells[y][x] |= dir
+			cells[ny][nx] |= int(_OPPOSITE[dir])
 
 
 # RENDERING

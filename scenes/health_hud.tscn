@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://d0mxqhfmwdwm7"]
+[gd_scene load_steps=4 format=3 uid="uid://cvoy0van5fuoy"]
 
 [ext_resource type="Script" uid="uid://cusqtajspavqo" path="res://scripts/health_hud.gd" id="1_health_hud"]
 [ext_resource type="Texture2D" uid="uid://dp71sevfrvund" path="res://assets/heart_filled.png" id="2_653qa"]

@@ -1,0 +1,99 @@
+[gd_scene load_steps=5 format=3 uid="uid://ba1xfq8ujgrsy"]
+
+[ext_resource type="Script" path="res://scripts/instructions.gd" id="1_dkfqi"]
+[ext_resource type="FontFile" path="res://assets/alagard.ttf" id="2_nisbi"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dkfqi"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nisbi"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
+
+[node name="Instructions" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_dkfqi")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -181.5
+offset_top = -278.0
+offset_right = 181.5
+offset_bottom = 278.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 30
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_nisbi")
+theme_override_font_sizes/font_size = 60
+text = "HOW TO PLAY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_nisbi")
+theme_override_font_sizes/font_size = 32
+text = "Navigate the labyrinth and find the exit before
+the Minotaur finds you.
+
+MOVE   -   Arrow Keys or WASD:
+FIND KEYS   -   Collect all keys to unlock the exit
+ESCAPE   -   Reach the exit to advance to the next level
+
+BEWARE
+The maze is dark. You can only see what's in
+your line of sight. The Minotaur stalks the
+corridors. If it catches you, you lose a life.
+Lose all three and the game is over."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BackButton" type="Button" parent="VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("2_nisbi")
+theme_override_font_sizes/font_size = 60
+theme_override_styles/normal = SubResource("StyleBoxFlat_dkfqi")
+theme_override_styles/hover = SubResource("StyleBoxFlat_nisbi")
+text = "Back"
