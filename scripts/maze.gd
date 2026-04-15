@@ -4,6 +4,8 @@ class_name MazeController
 const TILE_SIZE := 8
 const COLOR_FLOOR := Color(1, 1, 1)
 
+const _MINOTAUR_SCENE := preload("res://scenes/minotaur.tscn")
+
 # ── Maze generation settings ──────────────────────────────────
 ## Width of each quadrant in cells (total maze width = 2 * this)
 @export var quadrant_width: int = 6
@@ -11,8 +13,6 @@ const COLOR_FLOOR := Color(1, 1, 1)
 @export var quadrant_height: int = 6
 ## Optional sprite for key pickups; if unset, a gold placeholder block is drawn.
 @export var key_icon: Texture2D
-## Turn off placeholder enemy when minotaur is in the scene; then delete scripts/placeholder_enemy_maze.gd.
-@export var use_placeholder_enemy: bool = true
 ## Chance to remove each dead end (0.0 = pure maze, 1.0 = no dead ends)
 @export_range(0.0, 1.0) var braid_chance: float = 0.5
 
@@ -63,16 +63,19 @@ func _ready() -> void:
 
 	var keys_root := Node2D.new()
 	keys_root.name = "Keys"
-	keys_root.z_index = 2
+	keys_root.z_index = 1
 	add_child(keys_root)
 
 	var enemies_root := Node2D.new()
 	enemies_root.name = "Enemies"
-	enemies_root.z_index = 2
+	enemies_root.z_index = 3
 	add_child(enemies_root)
 
-	if use_placeholder_enemy:
-		PlaceholderEnemyMaze.spawn(self, enemies_root)
+	var minotaur_cell := _pick_minotaur_cell()
+	if minotaur_cell.x >= 0:
+		var minotaur := _MINOTAUR_SCENE.instantiate() as Minotaur
+		enemies_root.add_child(minotaur)
+		minotaur.initialize(self , minotaur_cell)
 
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
@@ -393,6 +396,17 @@ func _add_wall_block(parent: Node2D, center: Vector2, tile: Vector2i) -> void:
 	body.add_child(sprite)
 
 	parent.add_child(body)
+
+func _pick_minotaur_cell() -> Vector2i:
+	var row: String = _rows[1]
+	var candidates: Array[Vector2i] = []
+	for x in range(row.length()):
+		var c := Vector2i(x, 1)
+		if is_walkable(c) and c != exit_cell:
+			candidates.append(c)
+	if candidates.is_empty():
+		return Vector2i(-1, -1)
+	return candidates[randi() % candidates.size()]
 
 
 func _fit_camera_to_maze(cam: Camera2D, grid_w: int, grid_h: int) -> void:

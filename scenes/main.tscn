@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cbtpspgbylhf3" path="res://scripts/maze.gd" id="1_maze"]
 [ext_resource type="PackedScene" uid="uid://d14b8uqmle3ar" path="res://scenes/player.tscn" id="2_0wfyh"]
-[ext_resource type="PackedScene" uid="uid://d0mxqhfmwdwm7" path="res://scenes/health_hud.tscn" id="3_health"]
+[ext_resource type="PackedScene" uid="uid://cvoy0van5fuoy" path="res://scenes/health_hud.tscn" id="3_health"]
 [ext_resource type="Texture2D" uid="uid://bgmlllah8oyf3" path="res://assets/key.png" id="3_jyhfs"]
 
 [node name="Main" type="Node2D"]
