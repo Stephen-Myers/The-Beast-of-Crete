@@ -1,7 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://umnul05hinq8"]
+[gd_scene load_steps=5 format=3 uid="uid://djcyivtth32qn"]
 
 [ext_resource type="Script" path="res://scripts/credits.gd" id="1_0bpdh"]
-[ext_resource type="FontFile" path="res://assets/alagard.ttf" id="2_2ckv8"]
+[ext_resource type="FontFile" uid="uid://3oxpmqd07pti" path="res://assets/alagard.ttf" id="2_2ckv8"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0bpdh"]
 content_margin_left = 16.0
@@ -62,6 +62,7 @@ theme_override_constants/separation = 30
 
 [node name="TitleLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_constants/line_spacing = 4
 theme_override_fonts/font = ExtResource("2_2ckv8")
 theme_override_font_sizes/font_size = 60
 text = "CREDITS"
@@ -70,6 +71,7 @@ vertical_alignment = 1
 
 [node name="Label" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_constants/line_spacing = 4
 theme_override_fonts/font = ExtResource("2_2ckv8")
 theme_override_font_sizes/font_size = 48
 text = "THE BEAST OF CRETE

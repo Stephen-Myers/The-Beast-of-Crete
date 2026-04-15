@@ -1,7 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://ba1xfq8ujgrsy"]
+[gd_scene load_steps=5 format=3 uid="uid://dwp82rvtbeg7k"]
 
 [ext_resource type="Script" path="res://scripts/instructions.gd" id="1_dkfqi"]
-[ext_resource type="FontFile" path="res://assets/alagard.ttf" id="2_nisbi"]
+[ext_resource type="FontFile" uid="uid://3oxpmqd07pti" path="res://assets/alagard.ttf" id="2_nisbi"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dkfqi"]
 content_margin_left = 16.0
@@ -62,6 +62,7 @@ theme_override_constants/separation = 30
 
 [node name="TitleLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_constants/line_spacing = 4
 theme_override_fonts/font = ExtResource("2_nisbi")
 theme_override_font_sizes/font_size = 60
 text = "HOW TO PLAY"
@@ -70,6 +71,7 @@ vertical_alignment = 1
 
 [node name="Label" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_constants/line_spacing = 4
 theme_override_fonts/font = ExtResource("2_nisbi")
 theme_override_font_sizes/font_size = 32
 text = "Navigate the labyrinth and find the exit before

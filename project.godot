@@ -11,13 +11,13 @@ config_version=5
 [application]
 
 config/name="The Beast of Crete"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="uid://dn4u8xn2lriul"
 config/features=PackedStringArray("4.5", "Forward Plus")
 
 [display]
 
-window/size/viewport_width=256
-window/size/viewport_height=224
+window/size/viewport_width=1028
+window/size/viewport_height=896
 window/size/window_width_override=1028
 window/size/window_height_override=896
 window/stretch/mode="canvas_items"

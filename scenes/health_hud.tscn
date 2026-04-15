@@ -10,7 +10,7 @@ anchors_preset = 0
 script = ExtResource("1_health_hud")
 block_texture = ExtResource("2_653qa")
 block_empty_texture = ExtResource("3_1oh7d")
-block_size = Vector2(9, 9)
+block_size = Vector2(40, 40)
 
 [node name="Overlay" type="Control" parent="."]
 layout_mode = 1
