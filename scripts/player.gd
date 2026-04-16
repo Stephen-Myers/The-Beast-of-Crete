@@ -18,11 +18,13 @@ var _held_dir: Vector2i = Vector2i.ZERO
 var _move_timer: float = 0.0
 var _initial_held: bool = false
 var _enemy_hit_cd: float = 0.0
+var maze: MazeController
 
 
 func _ready() -> void:
 	health = max_health
 	health_changed.emit(health, max_health)
+	maze = get_parent().get_node_or_null("Maze") as MazeController
 
 
 func take_hit() -> bool:
@@ -33,9 +35,9 @@ func take_hit() -> bool:
 	return health > 0
 
 
-func initialize_grid(maze: MazeController, cell: Vector2i) -> void:
+func initialize_grid(maze1: MazeController, cell: Vector2i) -> void:
 	_grid_cell = cell
-	global_position = maze.tile_to_world_center(_grid_cell)
+	global_position = maze1.tile_to_world_center(_grid_cell)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -61,6 +63,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_enemy_hit_cd = maxf(0.0, _enemy_hit_cd - delta)
+	if maze.has_enemy_at(_grid_cell) && _enemy_hit_cd <= 0.0:
+		take_hit()
+		_enemy_hit_cd = enemy_hit_cooldown_sec
 	if _held_dir == Vector2i.ZERO:
 		return
 	_move_timer -= delta
@@ -71,21 +76,14 @@ func _process(delta: float) -> void:
 
 
 func _try_move(d: Vector2i) -> void:
-	var maze := get_parent().get_node_or_null("Maze") as MazeController
 	if maze == null:
 		return
 	var next: Vector2i = _grid_cell + d
-	if maze.has_enemy_at(next):
-		if _enemy_hit_cd <= 0.0:
-			take_hit()
-			_enemy_hit_cd = enemy_hit_cooldown_sec
-		return
 	if maze.is_walkable(next):
 		_grid_cell = next
 		global_position = maze.tile_to_world_center(_grid_cell)
 		if maze.try_collect_key_at(_grid_cell):
 			keys_held += 1
-
 
 func _key_to_dir(keycode: Key) -> Vector2i:
 	match keycode:
