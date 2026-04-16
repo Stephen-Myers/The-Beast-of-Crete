@@ -5,6 +5,7 @@ signal health_changed(current: int, maximum: int)
 
 const MOVE_INITIAL_DELAY := 0.25 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
+const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 
 @export var max_health: int = 3
 ## Min time between damage from bumping the same enemy while holding a key (seconds).
@@ -18,6 +19,8 @@ var _held_dir: Vector2i = Vector2i.ZERO
 var _move_timer: float = 0.0
 var _initial_held: bool = false
 var _enemy_hit_cd: float = 0.0
+var _floor_advance_busy: bool = false
+var _dead: bool = false
 var maze: MazeController
 
 
@@ -28,10 +31,14 @@ func _ready() -> void:
 
 
 func take_hit() -> bool:
-	if health <= 0:
+	if _dead or health <= 0:
 		return false
 	health -= 1
 	health_changed.emit(health, max_health)
+	if health <= 0:
+		_dead = true
+		_held_dir = Vector2i.ZERO
+		get_tree().call_deferred("change_scene_to_file", MAIN_MENU_SCENE)
 	return health > 0
 
 
@@ -41,6 +48,8 @@ func initialize_grid(maze1: MazeController, cell: Vector2i) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _dead:
+		return
 	if not event is InputEventKey:
 		return
 	var e := event as InputEventKey
@@ -62,8 +71,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _dead:
+		return
 	_enemy_hit_cd = maxf(0.0, _enemy_hit_cd - delta)
-	if maze.has_enemy_at(_grid_cell) && _enemy_hit_cd <= 0.0:
+	if maze != null and maze.has_enemy_at(_grid_cell) && _enemy_hit_cd <= 0.0:
 		take_hit()
 		_enemy_hit_cd = enemy_hit_cooldown_sec
 	if _held_dir == Vector2i.ZERO:
@@ -76,14 +87,19 @@ func _process(delta: float) -> void:
 
 
 func _try_move(d: Vector2i) -> void:
-	if maze == null:
+	if _dead or maze == null or _floor_advance_busy:
 		return
 	var next: Vector2i = _grid_cell + d
-	if maze.is_walkable(next):
-		_grid_cell = next
-		global_position = maze.tile_to_world_center(_grid_cell)
-		if maze.try_collect_key_at(_grid_cell):
-			keys_held += 1
+	if not maze.is_walkable(next):
+		return
+	_grid_cell = next
+	global_position = maze.tile_to_world_center(_grid_cell)
+	if maze.try_collect_key_at(_grid_cell):
+		keys_held += 1
+	if maze.should_advance_floor(_grid_cell, keys_held):
+		_floor_advance_busy = true
+		await maze.advance_to_next_floor(self)
+		_floor_advance_busy = false
 
 func _key_to_dir(keycode: Key) -> Vector2i:
 	match keycode:
