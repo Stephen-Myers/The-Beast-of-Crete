@@ -33,6 +33,7 @@ var spawn_cell: Vector2i = Vector2i.ZERO
 var exit_cell: Vector2i = Vector2i.ZERO
 var _keys_by_cell: Dictionary = {}
 var _enemy_cells: Dictionary = {}
+var fog: FogOfWar = null
 
 
 func _ready() -> void:
@@ -88,10 +89,19 @@ func _ready() -> void:
 					keys_root.add_child(kp)
 					_keys_by_cell[Vector2i(x, y)] = kp
 
+	# Initialize fog of war
+	fog = FogOfWar.new()
+	fog.name = "Fog"
+	fog.z_index = 10 # render above everything else
+	add_child(fog)
+	fog.setup(_rows, TILE_SIZE)
+
 	# Initialize player
 	var player := get_node_or_null("../Player")
 	if player and player.has_method("initialize_grid"):
 		player.initialize_grid(self, spawn_cell)
+	if fog:
+		fog.update_visibility(spawn_cell, self)
 
 	# Fit camera
 	var cam := get_node_or_null("../Camera2D") as Camera2D

@@ -85,6 +85,9 @@ func _try_move(d: Vector2i) -> void:
 		global_position = maze.tile_to_world_center(_grid_cell)
 		if maze.try_collect_key_at(_grid_cell):
 			keys_held += 1
+		# Update fog of war visibility
+		if maze.fog:
+			maze.fog.update_visibility(_grid_cell, maze)
 
 
 func _key_to_dir(keycode: Key) -> Vector2i:
