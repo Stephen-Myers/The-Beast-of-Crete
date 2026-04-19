@@ -9,7 +9,7 @@ const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 
 @export var max_health: int = 3
 ## Min time between damage from bumping the same enemy while holding a key (seconds).
-@export var enemy_hit_cooldown_sec: float = 0.45
+@export var enemy_hit_cooldown_sec: float = 1
 
 var health: int = 3
 
