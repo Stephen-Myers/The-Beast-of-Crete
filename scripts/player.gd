@@ -3,7 +3,7 @@ class_name GridPlayer
 
 signal health_changed(current: int, maximum: int)
 
-const MOVE_INITIAL_DELAY := 0.25 # seconds before repeat kicks in
+const MOVE_INITIAL_DELAY := 0.2 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
 const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 
