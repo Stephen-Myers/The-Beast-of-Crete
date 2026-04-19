@@ -111,7 +111,8 @@ func _build_maze_visuals() -> void:
 	if minotaur_cell.x >= 0:
 		var minotaur := _MINOTAUR_SCENE.instantiate() as Minotaur
 		enemies_root.add_child(minotaur)
-		minotaur.initialize(self, minotaur_cell)
+		var player := get_node_or_null("../Player") as GridPlayer
+		minotaur.initialize(self , minotaur_cell, player)
 
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
