@@ -5,6 +5,8 @@ class_name Minotaur
 @export_range(0.0, 1.0) var wander_random_chance: float = 0.6
 @export var hunt_hiding_places_to_check: int = 2
 @export var get_away_time := 1.0 # wait __ seconds after catching player
+var search_steps := 7
+var smell_accuracy_radius := 4
 
 const SPRITE_HORIZONTAL := preload("res://assets/minotaur_left.png")
 # const SPRITE_VERTICAL := preload("res://assets/minotaur_down.png")
@@ -156,8 +158,8 @@ func _pick_random_target() -> void:
 func _pick_target_near_player() -> void:
 	var candidates: Array[Vector2i] = []
 	var p := _player.grid_cell
-	for dy in range(-4, 5):
-		for dx in range(-4, 5):
+	for dy in range(1 - smell_accuracy_radius, 1 + smell_accuracy_radius):
+		for dx in range(1 - smell_accuracy_radius, 1 + smell_accuracy_radius):
 			var cell := Vector2i(p.x + dx, p.y + dy)
 			if _maze.is_walkable(cell) and cell != _cell:
 				candidates.append(cell)
@@ -219,7 +221,7 @@ func _calculate_hiding_places() -> void:
 	var start := _hunt_snapshot_pos + _hunt_snapshot_dir
 	_verbose_print("Minotaur: Calculating hiding places starting from: %s" % start)
 	if _maze.is_walkable(start):
-		_dfs(start, 7, _hunt_snapshot_pos, found)
+		_dfs(start, search_steps, _hunt_snapshot_pos, found)
 	_verbose_print("Minotaur: Found %s potential hiding places." % _hunt_hiding_places.size())
 
 func _dfs(cell: Vector2i, steps_left: int, came_from: Vector2i, found: Dictionary) -> void:
