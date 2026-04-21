@@ -91,6 +91,13 @@ func _try_move(d: Vector2i) -> void:
 	if _dead or maze == null or _floor_advance_busy:
 		return
 	var next: Vector2i = grid_cell + d
+	# Questionable hack I added ------------------------------------
+	# If you press an impossible movement, it assumes you meant
+	# to continue in the last direction - For "turned too soon" situations
+	# only works once!
+	if not maze.is_walkable(next) and maze.is_walkable(grid_cell + last_dir + d):
+		next = grid_cell + last_dir
+	# End hack -----------------------------------------------------
 	if not maze.is_walkable(next):
 		return
 	last_dir = d

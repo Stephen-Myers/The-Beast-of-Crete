@@ -1,11 +1,13 @@
 extends CharacterBody2D
 class_name Minotaur
 
-@export var step_interval: float = .2
-@export_range(0.0, 1.0) var wander_random_chance: float = 0.5
+@export var step_interval: float = 0.2
+@export_range(0.0, 1.0) var wander_random_chance: float = 0.6
 @export var hunt_hiding_places_to_check: int = 2
-@export var get_away_time := 0.5
+@export var get_away_time := 1.0 # wait __ seconds after catching player
 
+const SPRITE_HORIZONTAL := preload("res://assets/minotaur_left.png")
+# const SPRITE_VERTICAL := preload("res://assets/minotaur_down.png")
 
 enum State {WANDER, CHASE, HUNT}
 var _state: State = State.WANDER
@@ -20,11 +22,11 @@ var _maze: MazeController
 var _cell: Vector2i
 var _target: Vector2i
 var _step_timer: float = 0.0
-var _get_away_timer: float = 0.0
+var _get_away_timer: float = 0.5
 
 
 func initialize(maze: MazeController, cell: Vector2i, player: GridPlayer) -> void:
-	print("Minotaur: Initialized at cell ", cell)
+	_verbose_print("Minotaur: Initialized at cell %s" % cell)
 	_maze = maze
 	_cell = cell
 	_player = player
@@ -32,11 +34,29 @@ func initialize(maze: MazeController, cell: Vector2i, player: GridPlayer) -> voi
 	_maze.register_enemy_cell(_cell)
 	_pick_new_target()
 
+func _update_sprite(dir: Vector2i) -> void:
+	var sprite := $Sprite2D
+	match dir:
+		Vector2i(1, 0):
+			sprite.texture = SPRITE_HORIZONTAL
+			sprite.flip_h = false
+		Vector2i(-1, 0):
+			sprite.texture = SPRITE_HORIZONTAL
+			sprite.flip_h = true
+		# I didn't like how the down sprite looked...
+		# Maybe we will want this if we add actual animation frames later
+		# Vector2i(0, 1):
+		# 	sprite.texture = SPRITE_VERTICAL
+		# 	sprite.flip_h = false
+		# Vector2i(0, -1):
+		# 	sprite.texture = SPRITE_VERTICAL
+		# 	sprite.flip_h = true
+
 
 func _process(delta: float) -> void:
 	_step_timer -= delta
 	if _player.grid_cell == _cell:
-		print("Minotaur: Player caught at ", _cell, "! Dealing damage.")
+		_verbose_print("Minotaur: Player caught at %s! Dealing damage." % _cell)
 		_get_away_timer = get_away_time
 		return
 	if _get_away_timer > 0.0:
@@ -52,27 +72,28 @@ func _take_step() -> void:
 	match _state:
 		State.WANDER:
 			if _has_line_of_sight():
-				print("Minotaur: Spotted player! WANDER -> CHASE")
+				_verbose_print("Minotaur: Spotted player! WANDER -> CHASE")
 				_state = State.CHASE
 				return _take_step()
 			if _cell == _target:
-				print("Minotaur: Reached wander target at ", _cell, ". Picking new target.")
+				_verbose_print("Minotaur: Reached wander target at %s. Picking new target." % _cell)
 				_pick_new_target()
 				return
 			var path := _bfs(_cell, _target)
 			if path.is_empty():
-				print("Minotaur: Path to target blocked or invalid. Picking new target.")
+				_verbose_print("Minotaur: Path to target blocked or invalid. Picking new target.")
 				_pick_new_target()
 				return
 			var next: Vector2i = path[0]
 			_maze.unregister_enemy_cell(_cell)
+			_update_sprite(next - _cell)
 			_cell = next
 			_maze.register_enemy_cell(_cell)
 			global_position = _maze.tile_to_world_center(_cell)
 
 		State.CHASE:
 			if not _has_line_of_sight():
-				print("Minotaur: Lost line of sight! CHASE -> HUNT")
+				_verbose_print("Minotaur: Lost line of sight! CHASE -> HUNT")
 				_enter_hunt_state()
 				_state = State.HUNT
 				return _take_step()
@@ -80,7 +101,7 @@ func _take_step() -> void:
 
 		State.HUNT:
 			if _has_line_of_sight():
-				print("Minotaur: Spotted player while hunting! HUNT -> CHASE")
+				_verbose_print("Minotaur: Spotted player while hunting! HUNT -> CHASE")
 				_state = State.CHASE
 				return _take_step()
 			_hunt_step()
@@ -129,7 +150,7 @@ func _pick_random_target() -> void:
 	if candidates.is_empty():
 		return
 	_target = candidates[randi() % candidates.size()]
-	print("Minotaur: Wandering to random location: ", _target)
+	_verbose_print("Minotaur: Wandering to random location: %s" % _target)
 
 
 func _pick_target_near_player() -> void:
@@ -144,7 +165,7 @@ func _pick_target_near_player() -> void:
 		_pick_random_target()
 		return
 	_target = candidates[randi() % candidates.size()]
-	print("Minotaur: Wandering to area near player: ", _target)
+	_verbose_print("Minotaur: Wandering to area near player: %s" % _target)
 
 
 func _bfs(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
@@ -186,6 +207,7 @@ func _chase_step() -> void:
 		return
 	var next: Vector2i = path[0]
 	_maze.unregister_enemy_cell(_cell)
+	_update_sprite(next - _cell)
 	_cell = next
 	_maze.register_enemy_cell(_cell)
 	global_position = _maze.tile_to_world_center(_cell)
@@ -195,13 +217,10 @@ func _calculate_hiding_places() -> void:
 	_hunt_hiding_places.clear()
 	var found: Dictionary = {}
 	var start := _hunt_snapshot_pos + _hunt_snapshot_dir
-	print("Minotaur: Calculating hiding places starting from: ", start)
+	_verbose_print("Minotaur: Calculating hiding places starting from: %s" % start)
 	if _maze.is_walkable(start):
 		_dfs(start, 7, _hunt_snapshot_pos, found)
-	print("Minotaur: Found ", _hunt_hiding_places.size(), " potential hiding places.")
-	for place in _hunt_hiding_places:
-		print("  ", place)
-
+	_verbose_print("Minotaur: Found %s potential hiding places." % _hunt_hiding_places.size())
 
 func _dfs(cell: Vector2i, steps_left: int, came_from: Vector2i, found: Dictionary) -> void:
 	if found.has(cell):
@@ -227,14 +246,14 @@ func _enter_hunt_state() -> void:
 	_hunt_tries = 2
 	_hunt_snapshot_pos = _player.grid_cell
 	_hunt_snapshot_dir = _player.last_dir
-	print("Minotaur: Player last seen at ", _hunt_snapshot_pos, " moving in direction ", _hunt_snapshot_dir)
+	_verbose_print("Minotaur: Player last seen at %s moving in direction %d" % [_hunt_snapshot_pos, _hunt_snapshot_dir])
 	_calculate_hiding_places()
 	_assign_next_hunt_target()
 
 
 func _assign_next_hunt_target() -> void:
 	if _hunt_hiding_places.is_empty():
-		print("Minotaur: No hiding places left to check. Returning to WANDER.")
+		_verbose_print("Minotaur: No hiding places left to check. Returning to WANDER.")
 		_state = State.WANDER
 		_pick_new_target()
 		return
@@ -242,18 +261,18 @@ func _assign_next_hunt_target() -> void:
 	var idx := randi() % _hunt_hiding_places.size()
 	_target = _hunt_hiding_places[idx]
 	_hunt_hiding_places.remove_at(idx)
-	print("Minotaur: Investigating hiding place at ", _target)
+	_verbose_print("Minotaur: Investigating hiding place at %s" % _target)
 
 
 func _hunt_step() -> void:
 	if _cell == _target:
 		_hunt_tries -= 1
 
-		print("Minotaur: Reached and cleared hiding place at ", _cell)
+		_verbose_print("Minotaur: Reached and cleared hiding place at %s" % _cell)
 		# Checked this location, assign the next one
 		# But first check if we've used our allowed number of locations
 		if _hunt_tries <= 0 or _hunt_hiding_places.is_empty():
-			print("Minotaur: Checked enough hiding places. Giving up hunt. HUNT -> WANDER")
+			_verbose_print("Minotaur: Checked enough hiding places. Giving up hunt. HUNT -> WANDER")
 			_state = State.WANDER
 			_pick_new_target()
 			return
@@ -261,11 +280,16 @@ func _hunt_step() -> void:
 		return
 	var path := _bfs(_cell, _target)
 	if path.is_empty():
-		print("Minotaur: Cannot reach hiding place at ", _target, ". Picking another.")
+		_verbose_print("Minotaur: Cannot reach hiding place at %s. Picking another." % _target)
 		_assign_next_hunt_target()
 		return
 	var next: Vector2i = path[0]
 	_maze.unregister_enemy_cell(_cell)
+	_update_sprite(next - _cell)
 	_cell = next
 	_maze.register_enemy_cell(_cell)
 	global_position = _maze.tile_to_world_center(_cell)
+
+func _verbose_print(message: String) -> void:
+	if false:
+		print("Minotaur: ", message)
