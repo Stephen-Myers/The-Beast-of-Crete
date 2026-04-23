@@ -5,6 +5,8 @@ const TILE_SIZE := 8
 const COLOR_FLOOR := Color(1, 1, 1)
 
 const _MINOTAUR_SCENE := preload("res://scenes/minotaur.tscn")
+## Keys required before stepping past the outer wall (exit_portal_cell) advances the floor.
+const KEYS_REQUIRED_FOR_EXIT := 3
 
 # ── Maze generation settings ──────────────────────────────────
 ## Width of each quadrant in cells (total maze width = 2 * this)
@@ -31,6 +33,8 @@ var _rows: PackedStringArray = []
 var _wall_texture: Texture2D = null
 var spawn_cell: Vector2i = Vector2i.ZERO
 var exit_cell: Vector2i = Vector2i.ZERO
+## Outer top-open tile (row above exit_cell) used to finish the floor.
+var exit_portal_cell: Vector2i = Vector2i.ZERO
 var _keys_by_cell: Dictionary = {}
 var _enemy_cells: Dictionary = {}
 var fog: FogOfWar = null
@@ -38,11 +42,38 @@ var fog: FogOfWar = null
 
 func _ready() -> void:
 	_wall_texture = load("res://assets/under_walls.png")
+	var player := get_node_or_null("../Player") as GridPlayer
+	await _full_regenerate(player)
 
-	# Generate the maze and store it as _rows (same format as the old hardcoded layout)
+
+## Clears generated nodes, builds a new maze, fits the camera, and places [player] at spawn.
+func advance_to_next_floor(player: GridPlayer) -> void:
+	await _full_regenerate(player)
+
+
+func _full_regenerate(player: GridPlayer) -> void:
+	_clear_maze_state()
 	_rows = _generate_maze_rows()
+	_scan_spawn_exit_and_portal()
+	_build_maze_visuals()
+	await _fit_camera_to_current_maze()
+	if player != null and player.has_method("initialize_grid"):
+		player.keys_held = 0
+		player.initialize_grid(self, spawn_cell)
 
-	# Find spawn (P) and exit (E) markers
+
+func _clear_maze_state() -> void:
+	_enemy_cells.clear()
+	_keys_by_cell.clear()
+	_rows.clear()
+	while get_child_count() > 0:
+		get_child(0).free()
+
+
+func _scan_spawn_exit_and_portal() -> void:
+	spawn_cell = Vector2i.ZERO
+	exit_cell = Vector2i.ZERO
+	exit_portal_cell = Vector2i.ZERO
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
 		for x in range(row.length()):
@@ -50,8 +81,13 @@ func _ready() -> void:
 				spawn_cell = Vector2i(x, y)
 			elif row[x] == "E":
 				exit_cell = Vector2i(x, y)
+	if exit_cell.y > 0:
+		exit_portal_cell = Vector2i(exit_cell.x, exit_cell.y - 1)
+	else:
+		exit_portal_cell = exit_cell
 
-	# Build the visual scene
+
+func _build_maze_visuals() -> void:
 	var floors := Node2D.new()
 	floors.name = "Floors"
 	floors.z_index = 0
@@ -76,7 +112,8 @@ func _ready() -> void:
 	if minotaur_cell.x >= 0:
 		var minotaur := _MINOTAUR_SCENE.instantiate() as Minotaur
 		enemies_root.add_child(minotaur)
-		minotaur.initialize(self , minotaur_cell)
+		var player := get_node_or_null("../Player") as GridPlayer
+		minotaur.initialize(self , minotaur_cell, player)
 
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
@@ -106,22 +143,23 @@ func _ready() -> void:
 	if fog:
 		fog.update_visibility(spawn_cell, self)
 
-	# Fit camera
+func _fit_camera_to_current_maze() -> void:
 	var cam := get_node_or_null("../Camera2D") as Camera2D
-	if cam and _rows.size() > 0:
-		var w := _rows[0].length()
-		var h := _rows.size()
-		var hud_px := 8.0
-		cam.global_position = Vector2(w, h) * TILE_SIZE / 2.0
-		cam.make_current()
-		await get_tree().process_frame
-		var maze_size := Vector2(w * TILE_SIZE, h * TILE_SIZE)
-		var vp := get_viewport().get_visible_rect().size
-		if vp.x > 0.0 and vp.y > 0.0:
-			var game_area := Vector2(vp.x, vp.y - hud_px)
-			var z: float = minf(game_area.x / maze_size.x, game_area.y / maze_size.y) * 0.92
-			cam.zoom = Vector2(z, z)
-			cam.offset = Vector2(0, -hud_px / 2.0)
+	if cam == null or _rows.is_empty():
+		return
+	var w := _rows[0].length()
+	var h := _rows.size()
+	var hud_px := 8.0
+	cam.global_position = Vector2(w, h) * TILE_SIZE / 2.0
+	cam.make_current()
+	await get_tree().process_frame
+	var maze_size := Vector2(w * TILE_SIZE, h * TILE_SIZE)
+	var vp := get_viewport().get_visible_rect().size
+	if vp.x > 0.0 and vp.y > 0.0:
+		var game_area := Vector2(vp.x, vp.y - hud_px)
+		var z: float = minf(game_area.x / maze_size.x, game_area.y / maze_size.y) * 0.92
+		cam.zoom = Vector2(z, z)
+		cam.offset = Vector2(0, -hud_px / 2.0)
 
 
 # PROCEDURAL MAZE GENERATION
@@ -439,6 +477,11 @@ func is_walkable(tile: Vector2i) -> bool:
 	if tile.x < 0 or tile.x >= row.length():
 		return false
 	return row[tile.x] != "#"
+
+
+## True after stepping onto the outer top tile (past the wall) with enough keys (starts the next floor).
+func should_advance_floor(cell: Vector2i, keys_held: int) -> bool:
+	return keys_held >= KEYS_REQUIRED_FOR_EXIT and cell == exit_portal_cell
 
 
 func has_enemy_at(tile: Vector2i) -> bool:

@@ -3,22 +3,26 @@ class_name GridPlayer
 
 signal health_changed(current: int, maximum: int)
 
-const MOVE_INITIAL_DELAY := 0.25 # seconds before repeat kicks in
+const MOVE_INITIAL_DELAY := 0.2 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
+const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 
 @export var max_health: int = 3
 ## Min time between damage from bumping the same enemy while holding a key (seconds).
-@export var enemy_hit_cooldown_sec: float = 0.45
+@export var enemy_hit_cooldown_sec: float = 1
 
 var health: int = 3
 
 var keys_held: int = 0
-var _grid_cell: Vector2i = Vector2i.ZERO
+var grid_cell: Vector2i = Vector2i.ZERO
 var _held_dir: Vector2i = Vector2i.ZERO
 var _move_timer: float = 0.0
 var _initial_held: bool = false
 var _enemy_hit_cd: float = 0.0
+var _floor_advance_busy: bool = false
+var _dead: bool = false
 var maze: MazeController
+var last_dir: Vector2i = Vector2i.ZERO
 
 
 func _ready() -> void:
@@ -28,19 +32,25 @@ func _ready() -> void:
 
 
 func take_hit() -> bool:
-	if health <= 0:
+	if _dead or health <= 0:
 		return false
 	health -= 1
 	health_changed.emit(health, max_health)
+	if health <= 0:
+		_dead = true
+		_held_dir = Vector2i.ZERO
+		get_tree().call_deferred("change_scene_to_file", MAIN_MENU_SCENE)
 	return health > 0
 
 
 func initialize_grid(maze1: MazeController, cell: Vector2i) -> void:
-	_grid_cell = cell
-	global_position = maze1.tile_to_world_center(_grid_cell)
+	grid_cell = cell
+	global_position = maze1.tile_to_world_center(grid_cell)
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _dead:
+		return
 	if not event is InputEventKey:
 		return
 	var e := event as InputEventKey
@@ -62,8 +72,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _dead:
+		return
 	_enemy_hit_cd = maxf(0.0, _enemy_hit_cd - delta)
-	if maze.has_enemy_at(_grid_cell) && _enemy_hit_cd <= 0.0:
+	if maze != null and maze.has_enemy_at(grid_cell) && _enemy_hit_cd <= 0.0:
 		take_hit()
 		_enemy_hit_cd = enemy_hit_cooldown_sec
 	if _held_dir == Vector2i.ZERO:
@@ -76,17 +88,30 @@ func _process(delta: float) -> void:
 
 
 func _try_move(d: Vector2i) -> void:
-	if maze == null:
+	if _dead or maze == null or _floor_advance_busy:
 		return
-	var next: Vector2i = _grid_cell + d
-	if maze.is_walkable(next):
-		_grid_cell = next
-		global_position = maze.tile_to_world_center(_grid_cell)
-		if maze.try_collect_key_at(_grid_cell):
-			keys_held += 1
-		# Update fog of war visibility
-		if maze.fog:
-			maze.fog.update_visibility(_grid_cell, maze)
+	var next: Vector2i = grid_cell + d
+	# Questionable hack I added ------------------------------------
+	# If you press an impossible movement, it assumes you meant
+	# to continue in the last direction - For "turned too soon" situations
+	# only works once!
+	if not maze.is_walkable(next) and maze.is_walkable(grid_cell + last_dir + d):
+		next = grid_cell + last_dir
+	# End hack -----------------------------------------------------
+	if not maze.is_walkable(next):
+		return
+	last_dir = d
+	grid_cell = next
+	global_position = maze.tile_to_world_center(grid_cell)
+	if maze.try_collect_key_at(grid_cell):
+		keys_held += 1
+	# Update fog of war visibility
+	if maze.fog:
+		maze.fog.update_visibility_from(grid_cell, maze)
+	if maze.should_advance_floor(grid_cell, keys_held):
+		_floor_advance_busy = true
+		await maze.advance_to_next_floor(self )
+		_floor_advance_busy = false
 
 func _key_to_dir(keycode: Key) -> Vector2i:
 	match keycode:

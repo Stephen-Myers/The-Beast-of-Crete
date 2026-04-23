@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://c3j2x4gwq71uj"]
 
 [ext_resource type="Script" uid="uid://br6u3gpk7mv6d" path="res://scripts/minotaur.gd" id="1_umvy0"]
-[ext_resource type="Texture2D" uid="uid://c1bfuvpv4jade" path="res://assets/minotaur.png" id="2_4agob"]
+[ext_resource type="Texture2D" uid="uid://c1bfuvpv4jade" path="res://assets/minotaur_left.png" id="2_4agob"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_o8fdv"]
 size = Vector2(11, 13)
