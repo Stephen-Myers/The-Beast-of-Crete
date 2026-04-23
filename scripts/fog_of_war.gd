@@ -8,7 +8,7 @@ class_name FogOfWar
 ## - Everything else is pitch black
 
 ## How far the player can see down a straight corridor
-@export var sight_range: int = 4
+@export var sight_range: int = 5
 
 # Tile size must match MazeController
 var _tile_size: int = 8
