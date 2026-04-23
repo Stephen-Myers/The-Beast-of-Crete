@@ -112,3 +112,6 @@ func _cast_cardinal(origin: Vector2i, dir: Vector2i, maze: MazeController) -> vo
 
 func _in_bounds(tile: Vector2i) -> bool:
 	return tile.x >= 0 and tile.x < _grid_w and tile.y >= 0 and tile.y < _grid_h
+
+func is_tile_visible(tile: Vector2i) -> bool:
+	return _visible_tiles.has(tile)

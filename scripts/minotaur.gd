@@ -68,6 +68,10 @@ func _process(delta: float) -> void:
 	if _step_timer <= 0.0:
 		_step_timer = step_interval
 		_take_step()
+	
+	# Hide minotaur when outside of player's line of sight
+	if _maze.fog:
+		visible = _maze.fog.is_tile_visible(_cell)
 
 
 func _take_step() -> void:
@@ -248,7 +252,7 @@ func _enter_hunt_state() -> void:
 	_hunt_tries = 2
 	_hunt_snapshot_pos = _player.grid_cell
 	_hunt_snapshot_dir = _player.last_dir
-	_verbose_print("Minotaur: Player last seen at %s moving in direction %d" % [_hunt_snapshot_pos, _hunt_snapshot_dir])
+	_verbose_print("Minotaur: Player last seen at %s moving in direction %s" % [_hunt_snapshot_pos, _hunt_snapshot_dir])
 	_calculate_hiding_places()
 	_assign_next_hunt_target()
 
