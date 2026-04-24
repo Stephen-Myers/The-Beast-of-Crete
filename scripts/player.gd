@@ -105,6 +105,9 @@ func _try_move(d: Vector2i) -> void:
 	global_position = maze.tile_to_world_center(grid_cell)
 	if maze.try_collect_key_at(grid_cell):
 		keys_held += 1
+	# Update fog of war visibility
+	if maze.fog:
+		maze.fog.update_visibility(grid_cell, maze)
 	if maze.should_advance_floor(grid_cell, keys_held):
 		_floor_advance_busy = true
 		await maze.advance_to_next_floor(self )
