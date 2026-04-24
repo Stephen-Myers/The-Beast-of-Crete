@@ -1,6 +1,9 @@
 extends Control
 class_name HealthHud
 
+const _DEFAULT_BLOCK := preload("res://assets/hud/heart_filled.png")
+const _DEFAULT_EMPTY := preload("res://assets/hud/heart_empty.png")
+
 ## Should match the number of TextureRect children under %BlocksRow (default: 3).
 @export var slot_count: int = 3
 ## Icon for each filled hit; leave empty for solid placeholder blocks.
@@ -25,6 +28,10 @@ var _blocks: Array[TextureRect] = []
 
 
 func _ready() -> void:
+	if block_texture == null:
+		block_texture = _DEFAULT_BLOCK
+	if block_empty_texture == null:
+		block_empty_texture = _DEFAULT_EMPTY
 	_collect_blocks()
 	if _blocks.size() != slot_count:
 		slot_count = _blocks.size()
@@ -89,7 +96,7 @@ func _placeholder_texture_for_size(sz: Vector2) -> ImageTexture:
 	var w := maxi(1, int(sz.x))
 	var h := maxi(1, int(sz.y))
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.88, 0.3, 0.32, 1.0))
+	img.fill(Color(0.35, 0.35, 0.38, 0.35))
 	return ImageTexture.create_from_image(img)
 
 func _connect_player() -> void:

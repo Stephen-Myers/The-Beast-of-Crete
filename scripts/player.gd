@@ -2,18 +2,21 @@ extends CharacterBody2D
 class_name GridPlayer
 
 signal health_changed(current: int, maximum: int)
+signal keys_changed(count: int)
+signal score_changed(total: int)
 
 const MOVE_INITIAL_DELAY := 0.2 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
 const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 
 @export var max_health: int = 3
-## Min time between damage from bumping the same enemy while holding a key (seconds).
-@export var enemy_hit_cooldown_sec: float = 1
+## Min time between damage from bumping the same enemy while on the same tile (seconds).
+@export var enemy_hit_cooldown_sec: float = 2.4
 
 var health: int = 3
 
 var keys_held: int = 0
+var score: int = 0
 var grid_cell: Vector2i = Vector2i.ZERO
 var _held_dir: Vector2i = Vector2i.ZERO
 var _move_timer: float = 0.0
@@ -28,6 +31,8 @@ var last_dir: Vector2i = Vector2i.ZERO
 func _ready() -> void:
 	health = max_health
 	health_changed.emit(health, max_health)
+	keys_changed.emit(keys_held)
+	score_changed.emit(score)
 	maze = get_parent().get_node_or_null("Maze") as MazeController
 
 
@@ -46,6 +51,18 @@ func take_hit() -> bool:
 func initialize_grid(maze1: MazeController, cell: Vector2i) -> void:
 	grid_cell = cell
 	global_position = maze1.tile_to_world_center(grid_cell)
+
+
+func reset_keys_for_new_floor() -> void:
+	keys_held = 0
+	keys_changed.emit(keys_held)
+
+
+func add_floor_completion_score(amount: int) -> void:
+	if amount <= 0:
+		return
+	score += amount
+	score_changed.emit(score)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -105,12 +122,16 @@ func _try_move(d: Vector2i) -> void:
 	global_position = maze.tile_to_world_center(grid_cell)
 	if maze.try_collect_key_at(grid_cell):
 		keys_held += 1
+		keys_changed.emit(keys_held)
+	if maze.try_collect_heart_at(grid_cell, health, max_health):
+		health += 1
+		health_changed.emit(health, max_health)
 	# Update fog of war visibility
 	if maze.fog:
 		maze.fog.update_visibility(grid_cell, maze)
 	if maze.should_advance_floor(grid_cell, keys_held):
 		_floor_advance_busy = true
-		await maze.advance_to_next_floor(self )
+		await maze.advance_to_next_floor(self)
 		_floor_advance_busy = false
 
 func _key_to_dir(keycode: Key) -> Vector2i:

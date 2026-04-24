@@ -1,9 +1,13 @@
-[gd_scene load_steps=5 format=3 uid="uid://m5820g0fysqo"]
+[gd_scene load_steps=9 format=3 uid="uid://m5820g0fysqo"]
 
 [ext_resource type="Script" uid="uid://cbtpspgbylhf3" path="res://scripts/maze.gd" id="1_maze"]
 [ext_resource type="PackedScene" uid="uid://d14b8uqmle3ar" path="res://scenes/player.tscn" id="2_0wfyh"]
 [ext_resource type="PackedScene" uid="uid://cvoy0van5fuoy" path="res://scenes/health_hud.tscn" id="3_health"]
-[ext_resource type="Texture2D" uid="uid://bgmlllah8oyf3" path="res://assets/items/key.png" id="3_jyhfs"]
+[ext_resource type="Texture2D" uid="uid://b4us573iicw8h" path="res://assets/items/item_heart.png" id="4_heart"]
+[ext_resource type="Script" uid="uid://83ep3oheegdl" path="res://scripts/run_timer_hud.gd" id="5_timer"]
+[ext_resource type="PackedScene" uid="uid://bhcp8qtjxpjeo" path="res://scenes/key_hud.tscn" id="6_keyhud"]
+[ext_resource type="Script" uid="uid://b0q00h5cpg5xv" path="res://scripts/level_label_hud.gd" id="7_level"]
+[ext_resource type="Script" uid="uid://3craeiflskoh" path="res://scripts/score_hud.gd" id="8_score"]
 
 [node name="Main" type="Node2D"]
 
@@ -11,11 +15,14 @@
 layer = 2
 
 [node name="HudRow" type="HBoxContainer" parent="HudLayer"]
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+alignment = 0
+theme_override_constants/separation = 8
 
 [node name="HealthHud" parent="HudLayer/HudRow" instance=ExtResource("3_health")]
 layout_mode = 2
@@ -23,9 +30,56 @@ separation = 7
 margin_top = 4
 margin_bottom = 3
 
+[node name="ScoreHud" type="Label" parent="HudLayer"]
+layout_mode = 1
+anchors_preset = 0
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -220.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = 28.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 16
+text = "Score: 0"
+horizontal_alignment = 2
+vertical_alignment = 1
+script = ExtResource("8_score")
+
+[node name="KeyHud" parent="HudLayer" instance=ExtResource("6_keyhud")]
+
+[node name="TopHudBar" type="VBoxContainer" parent="HudLayer"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 4.0
+offset_bottom = 46.0
+grow_horizontal = 2
+theme_override_constants/separation = 2
+
+[node name="LevelLabel" type="Label" parent="HudLayer/TopHudBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Level 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("7_level")
+
+[node name="RunTimer" type="Label" parent="HudLayer/TopHudBar"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 16
+text = "0:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("5_timer")
+
 [node name="Maze" type="Node2D" parent="."]
 script = ExtResource("1_maze")
-key_icon = ExtResource("3_jyhfs")
+heart_icon = ExtResource("4_heart")
 
 [node name="Player" parent="." instance=ExtResource("2_0wfyh")]
 

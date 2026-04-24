@@ -34,18 +34,21 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="Hit1" type="TextureRect" parent="Overlay/HealthMargin/BlocksRow"]
+texture = ExtResource("3_1oh7d")
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
 [node name="Hit2" type="TextureRect" parent="Overlay/HealthMargin/BlocksRow"]
+texture = ExtResource("3_1oh7d")
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
 [node name="Hit3" type="TextureRect" parent="Overlay/HealthMargin/BlocksRow"]
+texture = ExtResource("3_1oh7d")
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 expand_mode = 1
