@@ -4,10 +4,18 @@ class_name GridPlayer
 signal health_changed(current: int, maximum: int)
 signal keys_changed(count: int)
 signal score_changed(total: int)
+signal torches_changed(count: int)
 
 const MOVE_INITIAL_DELAY := 0.2 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
 const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
+
+const SPRITE_RIGHT := preload("res://assets/player_right.png")
+const SPRITE_DOWN := preload("res://assets/player_down.png")
+const ANIM_INTERVAL := 0.15
+
+var _anim_timer: float = 0.0
+var _anim_frame: int = 0
 
 @export var max_health: int = 3
 ## Min time between damage from bumping the same enemy while on the same tile (seconds).
@@ -29,13 +37,18 @@ var last_dir: Vector2i = Vector2i.ZERO
 var _exit_unlocked: bool = false  # tracks whether door-open sound has played this floor
 var _run_time: float = 0.0  # total elapsed seconds for game-over screen
 
+var torches_held: int = 3
+
 
 func _ready() -> void:
 	health = max_health
 	health_changed.emit(health, max_health)
 	keys_changed.emit(keys_held)
 	score_changed.emit(score)
+	torches_changed.emit(torches_held)
 	maze = get_parent().get_node_or_null("Maze") as MazeController
+
+	$Sprite2D.hframes = 4
 
 
 func take_hit() -> bool:
@@ -71,6 +84,24 @@ func reset_keys_for_new_floor() -> void:
 	keys_held = 0
 	keys_changed.emit(keys_held)
 
+func reset_torches_for_new_floor() -> void:
+	torches_held = 3
+	torches_changed.emit(torches_held)
+
+func place_torch() -> void:
+	print("place torch (player)")
+	if torches_held <= 0 or maze == null:
+		return
+	if last_dir == Vector2i.ZERO:
+		return
+	var behind: Vector2i = grid_cell - last_dir
+	if not maze.is_walkable(behind):
+		return
+	if not maze.place_torch_at(behind):
+		return
+	torches_held -= 1
+	torches_changed.emit(torches_held)
+
 
 func add_floor_completion_score(amount: int) -> void:
 	if amount <= 0:
@@ -85,6 +116,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
 	var e := event as InputEventKey
+	if e.pressed and not e.echo and e.keycode == KEY_SPACE:
+		place_torch()
+		get_viewport().set_input_as_handled()
+		return
 
 	var d := _key_to_dir(e.keycode)
 	if d == Vector2i.ZERO:
@@ -106,6 +141,7 @@ func _process(delta: float) -> void:
 	if _dead:
 		return
 	_run_time += delta
+	_update_sprite(delta)
 	_enemy_hit_cd = maxf(0.0, _enemy_hit_cd - delta)
 	if maze != null and maze.has_enemy_at(grid_cell) && _enemy_hit_cd <= 0.0:
 		take_hit()
@@ -149,7 +185,10 @@ func _try_move(d: Vector2i) -> void:
 		AudioManager.play_key_pickup()
 	# Update fog of war visibility
 	if maze.fog:
-		maze.fog.update_visibility(grid_cell, maze)
+		var viewers: Array = [grid_cell]
+		for torch_cell in maze.get_torch_cells():
+			viewers.append(torch_cell)
+		maze.fog.update_visibility_multi(viewers, maze)
 	if maze.should_advance_floor(grid_cell, keys_held):
 		_floor_advance_busy = true
 		AudioManager.play_level_complete()
@@ -163,3 +202,23 @@ func _key_to_dir(keycode: Key) -> Vector2i:
 		KEY_DOWN, KEY_S: return Vector2i(0, 1)
 		KEY_UP, KEY_W: return Vector2i(0, -1)
 	return Vector2i.ZERO
+
+func _update_sprite(delta: float) -> void:
+	_anim_timer += delta
+	if _anim_timer >= ANIM_INTERVAL:
+		_anim_timer -= ANIM_INTERVAL
+		_anim_frame = (_anim_frame + 1) % 4
+		$Sprite2D.frame = _anim_frame
+
+	if last_dir.x > 0: # Moving Right
+		$Sprite2D.texture = SPRITE_RIGHT
+		$Sprite2D.flip_h = false
+	elif last_dir.x < 0: # Moving Left
+		$Sprite2D.texture = SPRITE_RIGHT
+		$Sprite2D.flip_h = true
+	elif last_dir.y < 0: # Moving Up or Down
+		$Sprite2D.texture = SPRITE_DOWN
+		$Sprite2D.flip_h = false
+	else:
+		$Sprite2D.texture = SPRITE_DOWN
+		$Sprite2D.flip_h = true
