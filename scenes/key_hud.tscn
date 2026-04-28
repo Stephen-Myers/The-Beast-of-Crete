@@ -1,0 +1,39 @@
+[gd_scene load_steps=3 format=3 uid="uid://bhcp8qtjxpjeo"]
+
+[ext_resource type="Script" uid="uid://d31wr8yi068ae" path="res://scripts/key_hud.gd" id="1_key_hud"]
+[ext_resource type="Texture2D" uid="uid://h1bqov34dkc2" path="res://assets/items/health_key.png" id="3_n5wan"]
+
+[node name="KeyHud" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 8.0
+offset_top = 44.0
+offset_right = 120.0
+offset_bottom = 86.0
+script = ExtResource("1_key_hud")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="KeyIcon" type="TextureRect" parent="Row"]
+unique_name_in_owner = true
+texture_filter = 1
+layout_mode = 2
+size_flags_horizontal = 3
+texture = ExtResource("3_n5wan")
+expand_mode = 3
+stretch_mode = 5
+
+[node name="KeyCount" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 18
+text = "0"
+vertical_alignment = 1

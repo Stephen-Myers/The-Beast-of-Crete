@@ -1,12 +1,20 @@
 extends Node2D
 class_name MazeController
 
+signal floor_changed(current_floor: int)
+
 const TILE_SIZE := 8
 const COLOR_FLOOR := Color(1, 1, 1)
 
 const _MINOTAUR_SCENE := preload("res://scenes/minotaur.tscn")
 ## Keys required before stepping past the outer wall (exit_portal_cell) advances the floor.
 const KEYS_REQUIRED_FOR_EXIT := 3
+## Bonus heart on floors 2, 4, 6, …
+const HEART_FLOOR_INTERVAL := 2
+## Top maze row index used for minotaur spawn (keep bonus heart off this row to avoid overlap).
+const _MINOTAUR_SPAWN_ROW := 1
+## Test heart on floor 1 only. Set to false, or delete this const, the matching if in _full_regenerate, and _debug_place_test_heart_on_floor_1.
+const DEBUG_PLACE_TEST_HEART_FLOOR_1 := false
 
 # ── Maze generation settings ──────────────────────────────────
 ## Width of each quadrant in cells (total maze width = 2 * this)
@@ -15,8 +23,23 @@ const KEYS_REQUIRED_FOR_EXIT := 3
 @export var quadrant_height: int = 6
 ## Optional sprite for key pickups; if unset, a gold placeholder block is drawn.
 @export var key_icon: Texture2D
+## Sprite for bonus heart pickups (every [HEART_FLOOR_INTERVAL] floors).
+@export var heart_icon: Texture2D
 ## Chance to remove each dead end (0.0 = pure maze, 1.0 = no dead ends)
 @export_range(0.0, 1.0) var braid_chance: float = 0.5
+## Points awarded each time the player exits toward the next floor.
+@export var score_per_floor_completed: int = 1000
+
+## 1-based; increases when the player exits a floor. Used for difficulty and bonus hearts.
+var current_floor: int = 1
+## When true and [member current_floor] is 1, overrides the spawned minotaur's pace; floor 2+ use [Minotaur] scene defaults only.
+@export var minotaur_floor1_override_enabled: bool = true
+## Seconds between steps on floor 1 only (higher = slower). [Minotaur] default used from floor 2+ is typically 0.2.
+@export var minotaur_floor1_step_interval: float = 0.28
+## On floor 1 only. Higher tends toward more random wandering. [Minotaur] default from floor 2+ is typically 0.6.
+@export_range(0.0, 1.0) var minotaur_floor1_wander_random_chance: float = 0.68
+## Seconds the minotaur waits after catching the player, floor 1 only. [Minotaur] default from floor 2+ is typically 1.0.
+@export var minotaur_floor1_get_away_time: float = 1.1
 
 # ── Direction bitflags for the cell grid ──────────────────────
 const _N := 1
@@ -36,6 +59,7 @@ var exit_cell: Vector2i = Vector2i.ZERO
 ## Outer top-open tile (row above exit_cell) used to finish the floor.
 var exit_portal_cell: Vector2i = Vector2i.ZERO
 var _keys_by_cell: Dictionary = {}
+var _hearts_by_cell: Dictionary = {}
 var _enemy_cells: Dictionary = {}
 var fog: FogOfWar = null
 
@@ -48,6 +72,9 @@ func _ready() -> void:
 
 ## Clears generated nodes, builds a new maze, fits the camera, and places [player] at spawn.
 func advance_to_next_floor(player: GridPlayer) -> void:
+	current_floor += 1
+	if player != null:
+		player.add_floor_completion_score(score_per_floor_completed)
 	await _full_regenerate(player)
 
 
@@ -55,16 +82,21 @@ func _full_regenerate(player: GridPlayer) -> void:
 	_clear_maze_state()
 	_rows = _generate_maze_rows()
 	_scan_spawn_exit_and_portal()
+	_maybe_place_floor_heart_in_rows()
+	if DEBUG_PLACE_TEST_HEART_FLOOR_1:
+		_debug_place_test_heart_on_floor_1()
 	_build_maze_visuals()
 	await _fit_camera_to_current_maze()
 	if player != null and player.has_method("initialize_grid"):
-		player.keys_held = 0
+		player.reset_keys_for_new_floor()
 		player.initialize_grid(self, spawn_cell)
+	floor_changed.emit(current_floor)
 
 
 func _clear_maze_state() -> void:
 	_enemy_cells.clear()
 	_keys_by_cell.clear()
+	_hearts_by_cell.clear()
 	_rows.clear()
 	while get_child_count() > 0:
 		get_child(0).free()
@@ -87,6 +119,49 @@ func _scan_spawn_exit_and_portal() -> void:
 		exit_portal_cell = exit_cell
 
 
+## Bonus heart on even floor numbers (empty walkable tile, not minotaur spawn row).
+func _maybe_place_floor_heart_in_rows() -> void:
+	if current_floor < HEART_FLOOR_INTERVAL or (current_floor % HEART_FLOOR_INTERVAL) != 0:
+		return
+	var candidates: Array[Vector2i] = []
+	for y in range(_rows.size()):
+		if y == _MINOTAUR_SPAWN_ROW:
+			continue
+		var row: String = _rows[y]
+		for x in range(row.length()):
+			if row[x] != ".":
+				continue
+			var c := Vector2i(x, y)
+			if c == exit_portal_cell:
+				continue
+			candidates.append(c)
+	if candidates.is_empty():
+		return
+	var pick: Vector2i = candidates[randi() % candidates.size()]
+	_rows[pick.y] = _set_char(_rows[pick.y], pick.x, "H")
+
+
+func _debug_place_test_heart_on_floor_1() -> void:
+	if current_floor != 1:
+		return
+	var candidates: Array[Vector2i] = []
+	for y in range(_rows.size()):
+		if y == _MINOTAUR_SPAWN_ROW:
+			continue
+		var row: String = _rows[y]
+		for x in range(row.length()):
+			if row[x] != ".":
+				continue
+			var c := Vector2i(x, y)
+			if c == exit_portal_cell:
+				continue
+			candidates.append(c)
+	if candidates.is_empty():
+		return
+	var pick: Vector2i = candidates[randi() % candidates.size()]
+	_rows[pick.y] = _set_char(_rows[pick.y], pick.x, "H")
+
+
 func _build_maze_visuals() -> void:
 	var floors := Node2D.new()
 	floors.name = "Floors"
@@ -103,6 +178,11 @@ func _build_maze_visuals() -> void:
 	keys_root.z_index = 1
 	add_child(keys_root)
 
+	var hearts_root := Node2D.new()
+	hearts_root.name = "Hearts"
+	hearts_root.z_index = 1
+	add_child(hearts_root)
+
 	var enemies_root := Node2D.new()
 	enemies_root.name = "Enemies"
 	enemies_root.z_index = 3
@@ -114,6 +194,7 @@ func _build_maze_visuals() -> void:
 		enemies_root.add_child(minotaur)
 		var player := get_node_or_null("../Player") as GridPlayer
 		minotaur.initialize(self , minotaur_cell, player)
+		_apply_minotaur_floor1_pacing(minotaur)
 
 	for y in range(_rows.size()):
 		var row: String = _rows[y]
@@ -128,6 +209,11 @@ func _build_maze_visuals() -> void:
 					kp.setup(Vector2i(x, y), center, TILE_SIZE, key_icon)
 					keys_root.add_child(kp)
 					_keys_by_cell[Vector2i(x, y)] = kp
+				elif row[x] == "H":
+					var hp := HeartPickup.new()
+					hp.setup(Vector2i(x, y), center, TILE_SIZE, heart_icon)
+					hearts_root.add_child(hp)
+					_hearts_by_cell[Vector2i(x, y)] = hp
 
 	# Initialize fog of war
 	fog = FogOfWar.new()
@@ -445,6 +531,15 @@ func _add_wall_block(parent: Node2D, center: Vector2, tile: Vector2i) -> void:
 
 	parent.add_child(body)
 
+
+func _apply_minotaur_floor1_pacing(m: Minotaur) -> void:
+	if not minotaur_floor1_override_enabled or current_floor != 1:
+		return
+	m.step_interval = minotaur_floor1_step_interval
+	m.wander_random_chance = minotaur_floor1_wander_random_chance
+	m.get_away_time = minotaur_floor1_get_away_time
+
+
 func _pick_minotaur_cell() -> Vector2i:
 	var row: String = _rows[1]
 	var candidates: Array[Vector2i] = []
@@ -512,5 +607,20 @@ func try_collect_key_at(tile: Vector2i) -> bool:
 	if tile.y >= 0 and tile.y < _rows.size():
 		var row: String = _rows[tile.y]
 		if tile.x >= 0 and tile.x < row.length() and row[tile.x] == "K":
+			_rows[tile.y] = _set_char(row, tile.x, ".")
+	return true
+
+
+## Picks up a heart at [tile] if present and [current_hp] < [max_hp]. Returns true when health should increase.
+func try_collect_heart_at(tile: Vector2i, current_hp: int, max_hp: int) -> bool:
+	if current_hp >= max_hp or not _hearts_by_cell.has(tile):
+		return false
+	var node: Node = _hearts_by_cell[tile]
+	_hearts_by_cell.erase(tile)
+	if is_instance_valid(node):
+		node.queue_free()
+	if tile.y >= 0 and tile.y < _rows.size():
+		var row: String = _rows[tile.y]
+		if tile.x >= 0 and tile.x < row.length() and row[tile.x] == "H":
 			_rows[tile.y] = _set_char(row, tile.x, ".")
 	return true
