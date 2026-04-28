@@ -63,6 +63,7 @@ var _hearts_by_cell: Dictionary = {}
 var _enemy_cells: Dictionary = {}
 var fog: FogOfWar = null
 var _gate_locked: bool = true
+var _torches_by_cell: Dictionary = {}
 
 
 func _ready() -> void:
@@ -90,6 +91,7 @@ func _full_regenerate(player: GridPlayer) -> void:
 	await _fit_camera_to_current_maze()
 	if player != null and player.has_method("initialize_grid"):
 		player.reset_keys_for_new_floor()
+		player.reset_torches_for_new_floor()
 		player.initialize_grid(self , spawn_cell)
 		if player.keys_changed.is_connected(_on_keys_changed):
 			player.keys_changed.disconnect(_on_keys_changed)
@@ -117,6 +119,7 @@ func _clear_maze_state() -> void:
 	while get_child_count() > 0:
 		get_child(0).free()
 	_gate_locked = true
+	_torches_by_cell.clear()
 
 
 func _scan_spawn_exit_and_portal() -> void:
@@ -239,6 +242,11 @@ func _build_maze_visuals() -> void:
 	gate.z_index = 2
 	add_child(gate)
 
+	var torches_root := Node2D.new()
+	torches_root.name = "Torches"
+	torches_root.z_index = 2
+	add_child(torches_root)
+
 	# Initialize fog of war
 	fog = FogOfWar.new()
 	fog.name = "Fog"
@@ -338,6 +346,34 @@ func _generate_maze_rows() -> PackedStringArray:
 	for row in grid:
 		result.append(row)
 	return result
+
+func place_torch_at(cell: Vector2i) -> bool:
+	print("place torch (maze)")
+	if _torches_by_cell.has(cell):
+		return false
+	var center := tile_to_world_center(cell)
+	var torch := TorchPickup.new()
+	var torches_root := get_node_or_null("Torches")
+	if torches_root == null:
+		torches_root = Node2D.new()
+		torches_root.name = "Torches"
+		torches_root.z_index = 2
+		add_child(torches_root)
+	torch.setup(cell, center, TILE_SIZE)
+	torches_root.add_child(torch)
+	_torches_by_cell[cell] = torch
+	if fog:
+		fog.update_visibility_multi([cell], self )
+	return true
+
+func try_collect_torch_at(tile: Vector2i) -> bool:
+	if not _torches_by_cell.has(tile):
+		return false
+	var node: Node = _torches_by_cell[tile]
+	_torches_by_cell.erase(tile)
+	if is_instance_valid(node):
+		node.queue_free()
+	return true
 
 
 ## Places exactly three key markers ('K') on walkable cells (deterministic from sorted floors).
@@ -653,3 +689,6 @@ func try_collect_heart_at(tile: Vector2i, current_hp: int, max_hp: int) -> bool:
 		if tile.x >= 0 and tile.x < row.length() and row[tile.x] == "H":
 			_rows[tile.y] = _set_char(row, tile.x, ".")
 	return true
+	
+func get_torch_cells() -> Array:
+	return _torches_by_cell.keys()

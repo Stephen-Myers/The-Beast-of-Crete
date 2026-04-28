@@ -4,6 +4,7 @@ class_name GridPlayer
 signal health_changed(current: int, maximum: int)
 signal keys_changed(count: int)
 signal score_changed(total: int)
+signal torches_changed(count: int)
 
 const MOVE_INITIAL_DELAY := 0.2 # seconds before repeat kicks in
 const MOVE_REPEAT_INTERVAL := 0.1 # seconds between repeat steps
@@ -27,12 +28,15 @@ var _dead: bool = false
 var maze: MazeController
 var last_dir: Vector2i = Vector2i.ZERO
 
+var torches_held: int = 3
+
 
 func _ready() -> void:
 	health = max_health
 	health_changed.emit(health, max_health)
 	keys_changed.emit(keys_held)
 	score_changed.emit(score)
+	torches_changed.emit(torches_held)
 	maze = get_parent().get_node_or_null("Maze") as MazeController
 
 
@@ -57,6 +61,24 @@ func reset_keys_for_new_floor() -> void:
 	keys_held = 0
 	keys_changed.emit(keys_held)
 
+func reset_torches_for_new_floor() -> void:
+	torches_held = 3
+	torches_changed.emit(torches_held)
+
+func place_torch() -> void:
+	print("place torch (player)")
+	if torches_held <= 0 or maze == null:
+		return
+	if last_dir == Vector2i.ZERO:
+		return
+	var behind: Vector2i = grid_cell - last_dir
+	if not maze.is_walkable(behind):
+		return
+	if not maze.place_torch_at(behind):
+		return
+	torches_held -= 1
+	torches_changed.emit(torches_held)
+
 
 func add_floor_completion_score(amount: int) -> void:
 	if amount <= 0:
@@ -71,6 +93,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
 	var e := event as InputEventKey
+	if e.pressed and not e.echo and e.keycode == KEY_SPACE:
+		place_torch()
+		get_viewport().set_input_as_handled()
+		return
 
 	var d := _key_to_dir(e.keycode)
 	if d == Vector2i.ZERO:
@@ -128,10 +154,13 @@ func _try_move(d: Vector2i) -> void:
 		health_changed.emit(health, max_health)
 	# Update fog of war visibility
 	if maze.fog:
-		maze.fog.update_visibility(grid_cell, maze)
+		var viewers: Array = [grid_cell]
+		for torch_cell in maze.get_torch_cells():
+			viewers.append(torch_cell)
+		maze.fog.update_visibility_multi(viewers, maze)
 	if maze.should_advance_floor(grid_cell, keys_held):
 		_floor_advance_busy = true
-		await maze.advance_to_next_floor(self)
+		await maze.advance_to_next_floor(self )
 		_floor_advance_busy = false
 
 func _key_to_dir(keycode: Key) -> Vector2i:

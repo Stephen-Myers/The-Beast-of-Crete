@@ -23,9 +23,9 @@ var _seen_tiles: Dictionary = {}
 var _visible_tiles: Dictionary = {}
 
 # Colors
-const COLOR_HIDDEN := Color(0, 0, 0, 1.0)       # never seen: pure black
-const COLOR_REMEMBERED := Color(0, 0, 0, 0.3)   # seen before: dim
-const COLOR_VISIBLE := Color(0, 0, 0, 0.0)       # currently visible: transparent
+const COLOR_HIDDEN := Color(0, 0, 0, 1.0) # never seen: pure black
+const COLOR_REMEMBERED := Color(0, 0, 0, 0.3) # seen before: dim
+const COLOR_VISIBLE := Color(0, 0, 0, 0.0) # currently visible: transparent
 
 # Polygon shape (set once in setup, reused in update)
 var _poly_padded: PackedVector2Array
@@ -62,19 +62,24 @@ func setup(rows: PackedStringArray, tile_size: int) -> void:
 
 
 func update_visibility(player_tile: Vector2i, maze: MazeController) -> void:
+	update_visibility_multi([player_tile], maze)
+
+
+func update_visibility_multi(viewer_tiles: Array, maze: MazeController) -> void:
 	_visible_tiles.clear()
 
-	# 1. Reveals immediate 3x3 around player
-	for dy in range(-1, 2):
-		for dx in range(-1, 2):
-			var tile := player_tile + Vector2i(dx, dy)
-			if _in_bounds(tile):
-				_visible_tiles[tile] = true
+	for viewer in viewer_tiles:
+		# 1. Reveal immediate 3x3 around each viewer
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var tile: Vector2i = viewer + Vector2i(dx, dy)
+				if _in_bounds(tile):
+					_visible_tiles[tile] = true
 
-	# 2. Cardinal line-of-sight (N, S, E, W) up to sight_range
-	var cardinal_dirs := [Vector2i(0, -1), Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0)]
-	for dir in cardinal_dirs:
-		_cast_cardinal(player_tile, dir, maze)
+		# 2. Cardinal line-of-sight in all 4 directions
+		var cardinal_dirs := [Vector2i(0, -1), Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0)]
+		for dir in cardinal_dirs:
+			_cast_cardinal(viewer, dir, maze)
 
 	# 3. Mark all visible tiles as seen (wall memory)
 	for tile in _visible_tiles:
