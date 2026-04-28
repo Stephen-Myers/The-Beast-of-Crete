@@ -14,6 +14,10 @@ config/name="The Beast of Crete"
 run/main_scene="uid://dn4u8xn2lriul"
 config/features=PackedStringArray("4.5", "Forward Plus")
 
+[autoload]
+
+AudioManager="*res://scripts/audio_manager.gd"
+
 [display]
 
 window/size/viewport_width=1028

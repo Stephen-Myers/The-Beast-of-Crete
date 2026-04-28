@@ -26,6 +26,8 @@ var _floor_advance_busy: bool = false
 var _dead: bool = false
 var maze: MazeController
 var last_dir: Vector2i = Vector2i.ZERO
+var _exit_unlocked: bool = false  # tracks whether door-open sound has played this floor
+var _run_time: float = 0.0  # total elapsed seconds for game-over screen
 
 
 func _ready() -> void:
@@ -44,13 +46,25 @@ func take_hit() -> bool:
 	if health <= 0:
 		_dead = true
 		_held_dir = Vector2i.ZERO
-		get_tree().call_deferred("change_scene_to_file", MAIN_MENU_SCENE)
+		_show_game_over()
+	else:
+		AudioManager.play_take_damage()
 	return health > 0
+
+
+func _show_game_over() -> void:
+	var floor_num := 1
+	if maze != null:
+		floor_num = maze.current_floor
+	var overlay := GameOverOverlay.new()
+	overlay.setup(score, floor_num, _run_time)
+	get_tree().current_scene.add_child(overlay)
 
 
 func initialize_grid(maze1: MazeController, cell: Vector2i) -> void:
 	grid_cell = cell
 	global_position = maze1.tile_to_world_center(grid_cell)
+	_exit_unlocked = false  # reset on new floor
 
 
 func reset_keys_for_new_floor() -> void:
@@ -91,6 +105,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if _dead:
 		return
+	_run_time += delta
 	_enemy_hit_cd = maxf(0.0, _enemy_hit_cd - delta)
 	if maze != null and maze.has_enemy_at(grid_cell) && _enemy_hit_cd <= 0.0:
 		take_hit()
@@ -123,14 +138,21 @@ func _try_move(d: Vector2i) -> void:
 	if maze.try_collect_key_at(grid_cell):
 		keys_held += 1
 		keys_changed.emit(keys_held)
+		AudioManager.play_key_pickup()
+		# Play door-open sound when all keys collected
+		if not _exit_unlocked and keys_held >= MazeController.KEYS_REQUIRED_FOR_EXIT:
+			_exit_unlocked = true
+			AudioManager.play_door_open()
 	if maze.try_collect_heart_at(grid_cell, health, max_health):
 		health += 1
 		health_changed.emit(health, max_health)
+		AudioManager.play_key_pickup()
 	# Update fog of war visibility
 	if maze.fog:
 		maze.fog.update_visibility(grid_cell, maze)
 	if maze.should_advance_floor(grid_cell, keys_held):
 		_floor_advance_busy = true
+		AudioManager.play_level_complete()
 		await maze.advance_to_next_floor(self)
 		_floor_advance_busy = false
 

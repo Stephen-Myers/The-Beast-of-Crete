@@ -56,6 +56,11 @@ func _update_sprite(dir: Vector2i) -> void:
 
 
 func _process(delta: float) -> void:
+	# AUDIO — update heartbeat proximity every frame
+	if _player != null:
+		var dist := float(absi(_cell.x - _player.grid_cell.x) + absi(_cell.y - _player.grid_cell.y))
+		AudioManager.update_heartbeat(dist)
+
 	_step_timer -= delta
 	if _player.grid_cell == _cell:
 		_verbose_print("Minotaur: Player caught at %s! Dealing damage." % _cell)
@@ -79,6 +84,7 @@ func _take_step() -> void:
 		State.WANDER:
 			if _has_line_of_sight():
 				_verbose_print("Minotaur: Spotted player! WANDER -> CHASE")
+				AudioManager.play_spotted()
 				_state = State.CHASE
 				return _take_step()
 			if _cell == _target:
@@ -108,6 +114,7 @@ func _take_step() -> void:
 		State.HUNT:
 			if _has_line_of_sight():
 				_verbose_print("Minotaur: Spotted player while hunting! HUNT -> CHASE")
+				AudioManager.play_spotted()
 				_state = State.CHASE
 				return _take_step()
 			_hunt_step()

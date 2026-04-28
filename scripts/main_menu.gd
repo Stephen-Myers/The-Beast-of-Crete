@@ -11,19 +11,24 @@ func _ready() -> void:
 	btn_instructions.pressed.connect(_on_instructions)
 	btn_credits.pressed.connect(_on_credits)
 	btn_exit.pressed.connect(_on_exit)
+	AudioManager.play_menu_music()  
 
 
 func _on_play() -> void:
+	AudioManager.play_menu_button() 
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 func _on_instructions() -> void:
+	AudioManager.play_menu_button() 
 	get_tree().change_scene_to_file("res://scenes/instructions.tscn")
 
 
 func _on_credits() -> void:
+	AudioManager.play_menu_button() 
 	get_tree().change_scene_to_file("res://scenes/credits.tscn")
 
 
 func _on_exit() -> void:
+	AudioManager.play_menu_button() 
 	get_tree().quit()
