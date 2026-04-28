@@ -46,9 +46,9 @@ const _N := 1
 const _E := 2
 const _S := 4
 const _W := 8
-const _OPPOSITE := { 1: 4, 4: 1, 2: 8, 8: 2 }  # N<->S, E<->W
-const _DX := { 1: 0, 2: 1, 4: 0, 8: -1 }
-const _DY := { 1: -1, 2: 0, 4: 1, 8: 0 }
+const _OPPOSITE := {1: 4, 4: 1, 2: 8, 8: 2} # N<->S, E<->W
+const _DX := {1: 0, 2: 1, 4: 0, 8: - 1}
+const _DY := {1: - 1, 2: 0, 4: 1, 8: 0}
 const _DIRS := [1, 2, 4, 8]
 
 # ── State ─────────────────────────────────────────────────────
@@ -62,6 +62,7 @@ var _keys_by_cell: Dictionary = {}
 var _hearts_by_cell: Dictionary = {}
 var _enemy_cells: Dictionary = {}
 var fog: FogOfWar = null
+var _gate_locked: bool = true
 
 
 func _ready() -> void:
@@ -89,9 +90,24 @@ func _full_regenerate(player: GridPlayer) -> void:
 	await _fit_camera_to_current_maze()
 	if player != null and player.has_method("initialize_grid"):
 		player.reset_keys_for_new_floor()
-		player.initialize_grid(self, spawn_cell)
+		player.initialize_grid(self , spawn_cell)
+		if player.keys_changed.is_connected(_on_keys_changed):
+			player.keys_changed.disconnect(_on_keys_changed)
+		player.keys_changed.connect(_on_keys_changed)
 	floor_changed.emit(current_floor)
 
+
+func _on_keys_changed(count: int) -> void:
+	if count >= KEYS_REQUIRED_FOR_EXIT:
+		unlock_gate()
+
+func unlock_gate() -> void:
+	if not _gate_locked:
+		return
+	_gate_locked = false
+	var gate := get_node_or_null("Gate") as Sprite2D
+	if gate != null:
+		gate.texture = load("res://assets/gate_open.png")
 
 func _clear_maze_state() -> void:
 	_enemy_cells.clear()
@@ -100,6 +116,7 @@ func _clear_maze_state() -> void:
 	_rows.clear()
 	while get_child_count() > 0:
 		get_child(0).free()
+	_gate_locked = true
 
 
 func _scan_spawn_exit_and_portal() -> void:
@@ -215,6 +232,13 @@ func _build_maze_visuals() -> void:
 					hearts_root.add_child(hp)
 					_hearts_by_cell[Vector2i(x, y)] = hp
 
+	var gate := Sprite2D.new()
+	gate.name = "Gate"
+	gate.texture = load("res://assets/gate_locked.png")
+	gate.position = tile_to_world_center(exit_portal_cell)
+	gate.z_index = 2
+	add_child(gate)
+
 	# Initialize fog of war
 	fog = FogOfWar.new()
 	fog.name = "Fog"
@@ -225,9 +249,9 @@ func _build_maze_visuals() -> void:
 	# Initialize player
 	var player := get_node_or_null("../Player")
 	if player and player.has_method("initialize_grid"):
-		player.initialize_grid(self, spawn_cell)
+		player.initialize_grid(self , spawn_cell)
 	if fog:
-		fog.update_visibility(spawn_cell, self)
+		fog.update_visibility(spawn_cell, self )
 
 func _fit_camera_to_current_maze() -> void:
 	var cam := get_node_or_null("../Camera2D") as Camera2D
@@ -255,8 +279,8 @@ func _fit_camera_to_current_maze() -> void:
 func _generate_maze_rows() -> PackedStringArray:
 	var qw := quadrant_width
 	var qh := quadrant_height
-	var full_cw := qw * 2  # total cell width
-	var full_ch := qh * 2  # total cell height
+	var full_cw := qw * 2 # total cell width
+	var full_ch := qh * 2 # total cell height
 
 	# Generate 4 quadrant mazes independently
 	var q_tl := _gen_quadrant(qw, qh)
@@ -301,12 +325,12 @@ func _generate_maze_rows() -> PackedStringArray:
 	# Place entrance (P) on the bottom edge
 	var entrance_x := _find_border_opening(grid, th - 2, tw)
 	grid[th - 2] = _set_char(grid[th - 2], entrance_x, "P")
-	grid[th - 1] = _set_char(grid[th - 1], entrance_x, ".")  # open outer wall
+	grid[th - 1] = _set_char(grid[th - 1], entrance_x, ".") # open outer wall
 
 	# Place exit (E) on the top edge
 	var exit_x := _find_border_opening(grid, 1, tw)
 	grid[1] = _set_char(grid[1], exit_x, "E")
-	grid[0] = _set_char(grid[0], exit_x, ".")  # open outer wall
+	grid[0] = _set_char(grid[0], exit_x, ".") # open outer wall
 
 	_place_keys_in_grid(grid, tw, th)
 
@@ -342,7 +366,7 @@ func _place_keys_in_grid(grid: Array[String], tw: int, th: int) -> void:
 func _find_border_opening(grid: Array[String], row_idx: int, width: int) -> int:
 	var candidates: Array[int] = []
 	for x in range(1, width - 1):
-		if grid[row_idx][x] == ".":
+		if grid[row_idx][x] == "." and x % 2 == 1:
 			candidates.append(x)
 	return candidates[randi() % candidates.size()]
 
@@ -506,6 +530,9 @@ func _is_wall(tile: Vector2i) -> bool:
 	var row: String = _rows[tile.y]
 	if tile.x < 0 or tile.x >= row.length():
 		return false
+	# Treat the exit portal as a wall so adjacent tiles connect correctly
+	if tile == exit_portal_cell:
+		return true
 	return row[tile.x] == "#"
 
 
@@ -570,6 +597,8 @@ func is_walkable(tile: Vector2i) -> bool:
 		return false
 	var row: String = _rows[tile.y]
 	if tile.x < 0 or tile.x >= row.length():
+		return false
+	if tile == exit_portal_cell and _gate_locked:
 		return false
 	return row[tile.x] != "#"
 
