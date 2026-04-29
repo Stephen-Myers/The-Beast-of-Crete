@@ -9,6 +9,8 @@ var _sfx_level_complete: AudioStream
 var _sfx_menu_button: AudioStream
 var _sfx_door_open: AudioStream
 var _sfx_key_pickup: AudioStream
+var _sfx_heart_pickup: AudioStream
+var _sfx_torch_place: AudioStream
 
 # ── Music players (persistent across scenes) ──────────────────
 var _menu_music: AudioStreamPlayer
@@ -21,16 +23,17 @@ var _spotted_cooldown: float = 0.0
 var spotted_cooldown_duration: float = 10.0
 
 # ── Heartbeat proximity system ────────────────────────────────
-## The audio file is a continuous heartbeat at ~61 BPM.
-## We adjust pitch_scale to speed/slow the beats and volume to fade by distance.
+## Single heartbeat sample replayed on a timer. Interval scales with distance, volume is constant.
 var _heartbeat: AudioStreamPlayer
 var _heartbeat_active: bool = false
+var _heartbeat_timer: float = 0.0
 ## Distance in tiles at which heartbeat becomes audible
-var heartbeat_range: float = 10.0
-## pitch_scale when minotaur is at max range (normal speed)
-var heartbeat_pitch_far: float = 1.0
-## pitch_scale when minotaur is adjacent (fast heartbeat)
-var heartbeat_pitch_close: float = 2.0
+var heartbeat_range: float = 16.0
+## Fastest beat interval in seconds (when minotaur is adjacent)
+var heartbeat_min_interval: float = 0.3
+## Slowest beat interval in seconds (when minotaur is at max range)
+var heartbeat_max_interval: float = 2.0
+var _heartbeat_interval: float = 1.0
 
 
 func _ready() -> void:
@@ -40,11 +43,15 @@ func _ready() -> void:
 	_sfx_menu_button = load("res://assets/audio/Menu-Button.wav")
 	_sfx_door_open = load("res://assets/audio/Door-Open.wav")
 	_sfx_key_pickup = load("res://assets/audio/Key-Pickup.wav")
+	_sfx_heart_pickup = load("res://assets/audio/Heart-Pickup.wav")
+	_sfx_torch_place = load("res://assets/audio/Torch-Place.wav")
 
 	_menu_music = _make_player(load("res://assets/audio/Menu-Music.ogg"))
 	_maze_ambience = _make_player(load("res://assets/audio/Maze-Ambience.ogg"))
+	_maze_ambience.volume_db = -6.0
 	_game_over_music = _make_player(load("res://assets/audio/Game-Over.ogg"))
-	_heartbeat = _make_player(load("res://assets/audio/Heartbeat.ogg"))
+	_game_over_music.volume_db = -12.0
+	_heartbeat = _make_player(load("res://assets/audio/Heartbeat.wav"))
 
 
 func _make_player(stream: AudioStream) -> AudioStreamPlayer:
@@ -57,6 +64,11 @@ func _make_player(stream: AudioStream) -> AudioStreamPlayer:
 func _process(delta: float) -> void:
 	if _spotted_cooldown > 0.0:
 		_spotted_cooldown -= delta
+	if _heartbeat_active:
+		_heartbeat_timer -= delta
+		if _heartbeat_timer <= 0.0 and not _heartbeat.playing:
+			_heartbeat_timer = _heartbeat_interval
+			_heartbeat.play()
 
 
 # ── Music controls ────────────────────────────────────────────
@@ -109,10 +121,10 @@ func play_spotted() -> void:
 	if _spotted_cooldown > 0.0:
 		return
 	_spotted_cooldown = spotted_cooldown_duration
-	_play_sfx(_sfx_spotted)
+	_play_sfx(_sfx_spotted, -18.0)
 
 func play_take_damage() -> void:
-	_play_sfx(_sfx_take_damage)
+	_play_sfx(_sfx_take_damage, -12.0)
 
 func play_level_complete() -> void:
 	_play_sfx(_sfx_level_complete)
@@ -124,7 +136,13 @@ func play_door_open() -> void:
 	_play_sfx(_sfx_door_open)
 
 func play_key_pickup() -> void:
-	_play_sfx(_sfx_key_pickup)
+	_play_sfx(_sfx_key_pickup, -6.0)
+
+func play_heart_pickup() -> void:
+	_play_sfx(_sfx_heart_pickup)
+
+func play_torch_place() -> void:
+	_play_sfx(_sfx_torch_place)
 
 
 # ── Heartbeat proximity ──────────────────────────────────────
@@ -136,20 +154,14 @@ func update_heartbeat(tile_distance: float) -> void:
 		return
 
 	# 0.0 = adjacent, 1.0 = at max range
-	var t := clampf(tile_distance / heartbeat_range, 0.0, 1.0)
+	var t := clampf((tile_distance - 2.0) / (heartbeat_range - 2.0), 0.0, 1.0)
+	_heartbeat_interval = lerpf(heartbeat_min_interval, heartbeat_max_interval, t)
 
-	# Start playing if not already
 	if not _heartbeat_active:
 		_heartbeat_active = true
-		_heartbeat.play()
-
-	# Speed up when close, normal speed when far
-	_heartbeat.pitch_scale = lerpf(heartbeat_pitch_close, heartbeat_pitch_far, t)
-	# Louder when close, quieter when far
-	_heartbeat.volume_db = lerpf(-5.0, -25.0, t)
+		_heartbeat_timer = 0.0  # beat immediately on first enter
 
 
 func stop_heartbeat() -> void:
 	_heartbeat_active = false
 	_heartbeat.stop()
-	_heartbeat.pitch_scale = 1.0

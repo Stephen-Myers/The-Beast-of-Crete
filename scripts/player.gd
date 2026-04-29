@@ -99,6 +99,7 @@ func place_torch() -> void:
 		return
 	if not maze.place_torch_at(behind):
 		return
+	AudioManager.play_torch_place()
 	torches_held -= 1
 	torches_changed.emit(torches_held)
 
@@ -182,7 +183,7 @@ func _try_move(d: Vector2i) -> void:
 	if maze.try_collect_heart_at(grid_cell, health, max_health):
 		health += 1
 		health_changed.emit(health, max_health)
-		AudioManager.play_key_pickup()
+		AudioManager.play_heart_pickup()
 	# Update fog of war visibility
 	if maze.fog:
 		var viewers: Array = [grid_cell]

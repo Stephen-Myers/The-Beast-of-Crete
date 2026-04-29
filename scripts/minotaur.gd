@@ -57,7 +57,7 @@ func _update_sprite(dir: Vector2i) -> void:
 
 func _process(delta: float) -> void:
 	# AUDIO — update heartbeat proximity every frame
-	if _player != null:
+	if _player != null and not _player._dead:
 		var dist := float(absi(_cell.x - _player.grid_cell.x) + absi(_cell.y - _player.grid_cell.y))
 		AudioManager.update_heartbeat(dist)
 
