@@ -45,22 +45,28 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 1)
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -181.5
-offset_top = -278.0
-offset_right = 181.5
-offset_bottom = 278.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 40
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 30
 
-[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="ScrollContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/line_spacing = 4
 theme_override_fonts/font = ExtResource("2_2ckv8")
@@ -69,7 +75,7 @@ text = "CREDITS"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Label" type="Label" parent="VBoxContainer"]
+[node name="Label" type="Label" parent="ScrollContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/line_spacing = 1
 theme_override_fonts/font = ExtResource("2_2ckv8")
@@ -82,12 +88,51 @@ Kevin Shaffer
 Stephen Myers
 
 CS 5410 — Spring 2026
+Built with Godot Engine
 
-Built with Godot Engine"
+
+MUSIC & SOUND EFFECTS
+
+Menu Music
+\"Dark Ambience Loop\" by Iwan Gabovitch (qubodup)
+OpenGameArt.org — CC-BY 3.0
+Cave Ambience
+\"AMBDsgn_Creepy Troll Cave\" by newlocknew
+Freesound.org — CC BY-NC 4.0
+Game Over Music
+\"KL Peach Game Over II\" by Kim Lightyear (KLY)
+OpenGameArt.org — CC-BY 3.0
+Heartbeat
+\"Heartbeat-89bpm\" by BRVHRTZ
+Pixabay
+Level Complete
+\"Completed.wav\" by Kenneth_Cooney
+Freesound.org — Creative Commons
+Spotted Stinger
+\"Horror Stinger 6.wav\" by F.M.Audio
+Freesound.org
+Menu Button
+\"UI_Sound_Submit_1\" by joseegn
+Freesound.org — Attribution
+Door Open
+\"Door Open, Door Close Set\" by qubodup
+OpenGameArt.org
+Take Damage
+\"Damage Sounds (Male)\" by VoiceBosch
+OpenGameArt.org — CC-BY-SA 4.0
+Key Pickup
+\"Level up, power up, Coin get\" by wobbleboxx
+OpenGameArt — CC0
+Heart Pickup
+\"3 Heal Spells\" by DoKashiteru
+OpenGameArt.org
+Torch Placement
+by freesound_community
+Pixabay"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BackButton" type="Button" parent="VBoxContainer"]
+[node name="BackButton" type="Button" parent="ScrollContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
