@@ -8,8 +8,8 @@ layout_mode = 3
 anchors_preset = 0
 offset_left = 8.0
 offset_top = 44.0
-offset_right = 120.0
-offset_bottom = 86.0
+offset_right = 88.0
+offset_bottom = 76.0
 script = ExtResource("1_key_hud")
 
 [node name="Row" type="HBoxContainer" parent="."]

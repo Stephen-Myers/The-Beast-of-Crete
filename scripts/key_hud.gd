@@ -2,11 +2,14 @@ extends Control
 
 ## Layout, texture, and sizes for the key icon are set on the KeyIcon node (and this root) in the editor — nothing here overrides them at runtime.
 
+const GAME_FONT := preload("res://assets/alagard.ttf")
+
 @onready var _icon: TextureRect = %KeyIcon
 @onready var _count: Label = %KeyCount
 
 
 func _ready() -> void:
+	_count.add_theme_font_override("font", GAME_FONT)
 	call_deferred("_connect_player")
 
 
