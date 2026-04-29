@@ -1,10 +1,13 @@
 extends Control
 
+const GAME_FONT := preload("res://assets/alagard.ttf")
+
 @onready var _icon: TextureRect = %TorchIcon
 @onready var _count: Label = %TorchCount
 
 
 func _ready() -> void:
+	_count.add_theme_font_override("font", GAME_FONT)
 	call_deferred("_connect_player")
 
 

@@ -1,7 +1,10 @@
 extends Label
 
+const GAME_FONT := preload("res://assets/alagard.ttf")
+
 
 func _ready() -> void:
+	add_theme_font_override("font", GAME_FONT)
 	call_deferred("_connect_player")
 
 

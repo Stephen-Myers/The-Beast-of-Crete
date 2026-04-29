@@ -68,6 +68,7 @@ var _torches_by_cell: Dictionary = {}
 
 func _ready() -> void:
 	_wall_texture = load("res://assets/under_walls.png")
+	AudioManager.play_maze_ambience()
 	var player := get_node_or_null("../Player") as GridPlayer
 	await _full_regenerate(player)
 
