@@ -112,11 +112,20 @@ func add_floor_completion_score(amount: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _dead:
-		return
 	if not event is InputEventKey:
 		return
 	var e := event as InputEventKey
+
+	# Pause toggle
+	if e.pressed and not e.echo and e.keycode == KEY_ESCAPE:
+		if not _dead and not get_tree().paused:
+			var overlay := PauseOverlay.new()
+			get_tree().current_scene.add_child(overlay)
+			get_viewport().set_input_as_handled()
+		return
+
+	if _dead:
+		return
 	if e.pressed and not e.echo and e.keycode == KEY_SPACE:
 		place_torch()
 		get_viewport().set_input_as_handled()
